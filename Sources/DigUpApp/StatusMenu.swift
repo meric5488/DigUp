@@ -150,7 +150,12 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             search.keyEquivalentModifierMask = modifiers
         }
         menu.addItem(search)
-        menu.addItem(ActionMenuItem("Open DigUp") { [weak self] in self?.onOpenWindow() })
+        let open = ActionMenuItem("Open DigUp") { [weak self] in self?.onOpenWindow() }
+        if let hotkey = model.windowHotkey, let (key, modifiers) = hotkey.menuEquivalent {
+            open.keyEquivalent = key
+            open.keyEquivalentModifierMask = modifiers
+        }
+        menu.addItem(open)
         if model.hasFolders {
             menu.addItem(.separator())
             let paused = model.status.paused

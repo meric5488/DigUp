@@ -14,6 +14,7 @@ final class AppController {
     let engine: Engine
     let download: ModelDownload
     let hotkeys = HotkeyCenter()
+    let windowHotkeys = HotkeyCenter()
     let updates: Updates
     /// Keeps Mail, Notes, Calendar, Reminders and Photos turned into files the engine indexes.
     let sources: SourceSyncer
@@ -91,6 +92,12 @@ final class AppController {
             log(model.hotkey == nil ? "hotkey \(combo.display) is taken by another app" : "hotkey \(combo.display)")
         } else {
             log("hotkey: can't read \"\(model.settings.hotkey)\" (try cmd+shift+space)")
+        }
+        windowHotkeys.onPress = { [weak self] in self?.showSearchWindow() }
+        if let combo = KeyCombo(model.settings.windowHotkey), combo != model.hotkey {
+            model.windowHotkey = windowHotkeys.register(combo) ? combo : nil
+            log(model.windowHotkey == nil ? "window hotkey \(combo.display) is taken by another app"
+                : "window hotkey \(combo.display)")
         }
 
         Previews.shared.passage = { [engine] id, code in await engine.text(ofSegment: id, code: code) }
@@ -293,6 +300,7 @@ final class AppController {
     /// Nil when `combo` is now the hotkey, else why it can't be.
     func setHotkey(_ combo: KeyCombo) -> String? {
         if let conflict = combo.systemConflict { return conflict }
+        if combo == model.windowHotkey { return "The window's shortcut is \(combo.display)" }
         guard hotkeys.register(combo) else { return "Another app is using \(combo.display)" }
         AppSettings.save(hotkey: combo.spec)
         model.settings.hotkey = combo.spec
@@ -301,9 +309,23 @@ final class AppController {
         return nil
     }
 
-    /// The shortcut recorder is listening (the hotkey steps aside so pressing it reaches the recorder).
+    /// Nil when `combo` now opens the window, else why it can't.
+    func setWindowHotkey(_ combo: KeyCombo) -> String? {
+        if let conflict = combo.systemConflict { return conflict }
+        if combo == model.hotkey { return "The search shortcut is \(combo.display)" }
+        guard windowHotkeys.register(combo) else { return "Another app is using \(combo.display)" }
+        AppSettings.save(windowHotkey: combo.spec)
+        model.settings.windowHotkey = combo.spec
+        model.windowHotkey = combo
+        log("window hotkey: \(combo.display)")
+        return nil
+    }
+
+    /// A shortcut recorder is listening (the hotkeys step aside so pressing one reaches the recorder).
     func hotkeyRecording(_ on: Bool) {
-        if on { hotkeys.suspend() } else { hotkeys.resume() }
+        for center in [hotkeys, windowHotkeys] {
+            if on { center.suspend() } else { center.resume() }
+        }
     }
 
     // MARK: Login item

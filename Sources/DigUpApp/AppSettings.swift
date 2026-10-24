@@ -23,6 +23,8 @@ nonisolated struct AppSettings: Sendable {
     /// Where the model files are downloaded to and loaded from (the helpers get it as DIGUP_MODELS).
     var modelsDirectory: URL
     var hotkey: String
+    /// Opens the window from any app ("" for none).
+    var windowHotkey: String
     /// On (the default), the big first pass of a folder (the backfill) runs on battery too; off, it waits for a
     /// charger. New files always index right away, and Low Power Mode or a hot Mac make the backfill wait either way.
     var indexOnBattery: Bool
@@ -50,6 +52,8 @@ nonisolated struct AppSettings: Sendable {
         .appendingPathComponent("Library/Application Support/DigUp")
     static let defaultIndexDirectory = supportDirectory.appendingPathComponent("index.noindex")
     static let defaultHotkey = "cmd+shift+space"
+    /// The search shortcut with ⌥: the bigger window.
+    static let defaultWindowHotkey = "opt+shift+cmd+space"
 
     /// The battery switch, in onboarding and Settings.
     static let batteryTitle = "Index on battery power"
@@ -73,6 +77,7 @@ nonisolated struct AppSettings: Sendable {
             indexDirectory: defaults.string(forKey: "indexDir").map(folderURL) ?? defaultIndexDirectory,
             modelsDirectory: defaults.string(forKey: "modelsDir").map(folderURL) ?? ModelFiles.installed,
             hotkey: defaults.string(forKey: "hotkey") ?? defaultHotkey,
+            windowHotkey: defaults.string(forKey: "windowHotkey") ?? defaultWindowHotkey,
             indexOnBattery: defaults.object(forKey: "indexOnBattery") == nil || defaults.bool(forKey: "indexOnBattery"),
             indexHoursOn: defaults.bool(forKey: "indexHoursOn"),
             indexHours: IndexHours(
@@ -160,6 +165,10 @@ nonisolated struct AppSettings: Sendable {
 
     static func save(hotkey: String) {
         defaults.set(hotkey, forKey: "hotkey")
+    }
+
+    static func save(windowHotkey: String) {
+        defaults.set(windowHotkey, forKey: "windowHotkey")
     }
 
     static func save(indexOnBattery: Bool) {

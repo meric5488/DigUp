@@ -133,7 +133,7 @@ extension KeyCombo {
     }
 }
 
-/// The app's one hotkey: registers it, swaps it for a new one (keeping the old one if the new one is taken), and
+/// One of the app's hotkeys (search, the window): registers it, swaps it for a new one (keeping the old one if the new one is taken), and
 /// steps aside while the shortcut recorder listens, so pressing the current combination reaches the recorder.
 final class HotkeyCenter {
     private var hotkey: GlobalHotkey?
@@ -175,9 +175,12 @@ final class HotkeyCenter {
     }
 }
 
-/// A system-wide hotkey through Carbon's `RegisterEventHotKey`, which needs no Accessibility permission.
+/// A system-wide hotkey through Carbon's `RegisterEventHotKey`, which needs no Accessibility permission. Each has its
+/// own ID: every one's handler sees every hotkey's press, and acts only on its own.
 final class GlobalHotkey {
     let combo: KeyCombo
+    nonisolated let id: UInt32
+    private static var lastID: UInt32 = 0
     private let action: () -> Void
     nonisolated(unsafe) private var hotKey: EventHotKeyRef?   // touched only on the main thread and in deinit
     nonisolated(unsafe) private var handler: EventHandlerRef?
@@ -186,13 +189,15 @@ final class GlobalHotkey {
     init?(_ combo: KeyCombo, action: @escaping () -> Void) {
         self.combo = combo
         self.action = action
+        Self.lastID += 1
+        id = Self.lastID
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let me = Unmanaged.passUnretained(self).toOpaque()
         guard InstallEventHandler(GetApplicationEventTarget(), hotkeyPressed, 1, &spec, me, &handler) == noErr else {
             return nil
         }
-        let id = EventHotKeyID(signature: OSType(0x4447_5550), id: 1)   // "DGUP"
-        let status = RegisterEventHotKey(combo.keyCode, combo.carbonModifiers, id, GetApplicationEventTarget(), 0,
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4447_5550), id: id)   // "DGUP"
+        let status = RegisterEventHotKey(combo.keyCode, combo.carbonModifiers, hotKeyID, GetApplicationEventTarget(), 0,
                                          &hotKey)
         guard status == noErr else {
             if let handler { RemoveEventHandler(handler) }
@@ -212,11 +217,19 @@ final class GlobalHotkey {
 /// Carbon delivers hotkey events on the main thread.
 private nonisolated func hotkeyPressed(_ next: EventHandlerCallRef?, _ event: EventRef?,
                                        _ userData: UnsafeMutableRawPointer?) -> OSStatus {
-    guard let userData else { return OSStatus(eventNotHandledErr) }
-    let address = UInt(bitPattern: userData)
-    MainActor.assumeIsolated {
-        let hotkey = Unmanaged<GlobalHotkey>.fromOpaque(UnsafeRawPointer(bitPattern: address)!).takeUnretainedValue()
-        hotkey.fire()
+    guard let userData, let event else { return OSStatus(eventNotHandledErr) }
+    var pressed = EventHotKeyID()
+    guard GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil,
+                            MemoryLayout<EventHotKeyID>.size, nil, &pressed) == noErr else {
+        return OSStatus(eventNotHandledErr)
     }
-    return noErr
+    let address = UInt(bitPattern: userData)
+    let handled = MainActor.assumeIsolated { () -> Bool in
+        let hotkey = Unmanaged<GlobalHotkey>.fromOpaque(UnsafeRawPointer(bitPattern: address)!).takeUnretainedValue()
+        guard hotkey.id == pressed.id else { return false }
+        hotkey.fire()
+        return true
+    }
+    // Another hotkey's press: its own handler is next.
+    return handled ? noErr : OSStatus(eventNotHandledErr)
 }

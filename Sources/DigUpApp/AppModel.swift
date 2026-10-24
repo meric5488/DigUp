@@ -8,6 +8,8 @@ final class AppModel {
     var status = EngineStatus()
     var settings: AppSettings
     var hotkey: KeyCombo?
+    /// Opens the window from any app (`AppSettings.windowHotkey`).
+    var windowHotkey: KeyCombo?
     let download: ModelDownload
     /// A newer DigUp the daily check found ("0.6.1"), until you open it (`Updates`).
     var updateAvailable: String?
