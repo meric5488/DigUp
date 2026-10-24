@@ -1,48 +1,80 @@
 import AppKit
 import SwiftUI
 
-/// The menubar icon: DigUp's logo (`Resources/AppIcon/tray.svg` and its `tray*.png`, as the Windows and Linux app's tray
-/// shows it). While the model downloads or files index, the tiles are dimmed and get their color back in a sweep from
-/// the top, clockwise, as far as it has come; while indexing is paused, two bars take the D's place.
+/// The menubar icon: DigUp's logo (four tiles around a D, `Resources/AppIcon/tray.svg`) in one color, as a template
+/// image, so the menubar draws it white or black like the system's icons. While the model downloads or files index,
+/// the tiles are faint and come back in a sweep from the top, clockwise, as far as it has come; while indexing is
+/// paused, two bars take the D's place.
 enum StatusIcon {
-    private static let logo = picture("tray"), dimmed = picture("tray-dim"), pausedLogo = picture("tray-paused")
-
-    private static func picture(_ name: String) -> NSImage? {
-        Bundle.main.url(forResource: name, withExtension: "png").flatMap(NSImage.init(contentsOf:))
-    }
-
-    /// `update`: a newer version is waiting, a dot at the top right.
+    /// `update`: a newer version is waiting, a dot at the top right (in the template's color).
     static func image(progress: Double?, paused: Bool = false, update: Bool = false) -> NSImage {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-            if paused {
-                pausedLogo?.draw(in: rect)
-            } else if let progress {
-                dimmed?.draw(in: rect)
+            // Drawn on a 64-unit grid, like the SVGs.
+            let transform = NSAffineTransform()
+            transform.scale(by: rect.width / 64)
+            transform.concat()
+            if let progress {
+                tiles(alpha: 0.35)
                 NSGraphicsContext.saveGraphicsState()
-                let center = NSPoint(x: rect.midX, y: rect.midY)
+                let center = NSPoint(x: 32, y: 32)
                 let reached = NSBezierPath()
                 reached.move(to: center)
-                reached.appendArc(withCenter: center, radius: rect.width, startAngle: 90,
+                reached.appendArc(withCenter: center, radius: 64, startAngle: 90,
                                   endAngle: 90 - 360 * min(1, max(0, progress)), clockwise: true)
                 reached.close()
                 reached.addClip()
-                logo?.draw(in: rect)
+                tiles(alpha: 1)
                 NSGraphicsContext.restoreGraphicsState()
             } else {
-                logo?.draw(in: rect)
+                tiles(alpha: 1)
             }
+            // The mark in the middle, cut out of the tiles with a gap around it.
+            let mark = paused ? bars() : letterD()
+            NSGraphicsContext.current?.compositingOperation = .clear
+            mark.lineWidth = 9
+            mark.stroke()
+            NSGraphicsContext.current?.compositingOperation = .sourceOver
+            NSColor.black.setFill()
+            mark.fill()
             if update {
                 // Cut a gap around it, so it reads as a dot on the logo and not part of it.
                 NSGraphicsContext.current?.compositingOperation = .clear
-                NSBezierPath(ovalIn: NSRect(x: 11.5, y: 11.5, width: 7, height: 7)).fill()
+                NSBezierPath(ovalIn: NSRect(x: 41, y: 41, width: 25, height: 25)).fill()
                 NSGraphicsContext.current?.compositingOperation = .sourceOver
-                NSColor.systemRed.setFill()
-                NSBezierPath(ovalIn: NSRect(x: 12.75, y: 12.75, width: 4.5, height: 4.5)).fill()
+                NSBezierPath(ovalIn: NSRect(x: 45.5, y: 45.5, width: 16, height: 16)).fill()
             }
             return true
         }
+        image.isTemplate = true
         image.accessibilityDescription = "DigUp"
         return image
+    }
+
+    private static func tiles(alpha: CGFloat) {
+        NSColor.black.withAlphaComponent(alpha).setFill()
+        for (x, y) in [(4.0, 4.0), (34.0, 4.0), (4.0, 34.0), (34.0, 34.0)] {
+            NSBezierPath(roundedRect: NSRect(x: x, y: y, width: 26, height: 26), xRadius: 7, yRadius: 7).fill()
+        }
+    }
+
+    /// The D (`menubar.svg`'s, a little larger): x 21…43, y 18.5…45.5.
+    private static func letterD() -> NSBezierPath {
+        let path = NSBezierPath()
+        path.move(to: NSPoint(x: 23.5, y: 18.5))
+        path.line(to: NSPoint(x: 29.5, y: 18.5))
+        path.appendArc(withCenter: NSPoint(x: 29.5, y: 32), radius: 13.5, startAngle: -90, endAngle: 90)
+        path.line(to: NSPoint(x: 23.5, y: 45.5))
+        path.appendArc(from: NSPoint(x: 21, y: 45.5), to: NSPoint(x: 21, y: 43), radius: 2.5)
+        path.line(to: NSPoint(x: 21, y: 21))
+        path.appendArc(from: NSPoint(x: 21, y: 18.5), to: NSPoint(x: 23.5, y: 18.5), radius: 2.5)
+        path.close()
+        return path
+    }
+
+    private static func bars() -> NSBezierPath {
+        let path = NSBezierPath(roundedRect: NSRect(x: 22, y: 19, width: 7.5, height: 26), xRadius: 2.5, yRadius: 2.5)
+        path.append(NSBezierPath(roundedRect: NSRect(x: 34.5, y: 19, width: 7.5, height: 26), xRadius: 2.5, yRadius: 2.5))
+        return path
     }
 }
 

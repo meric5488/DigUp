@@ -15,15 +15,15 @@
     </radialGradient>
   </defs>
   <g clip-path="url(#body)">
-    <rect x="100" y="100" width="824" height="824" fill="#13201A"/>
-    <rect x="182" y="182" width="310" height="310" rx="60" fill="#D5E6BB"/>
-    <rect x="532" y="182" width="310" height="310" rx="60" fill="#A2C78E"/>
-    <rect x="182" y="532" width="310" height="310" rx="60" fill="#64976B"/>
-    <rect x="532" y="532" width="310" height="310" rx="60" fill="#356652"/>
-    <rect x="100" y="100" width="824" height="824" fill="#13201A" opacity="0.62"/>
+    <rect x="100" y="100" width="824" height="824" fill="#111A2B"/>
+    <rect x="182" y="182" width="310" height="310" rx="60" fill="#D3E5FF"/>
+    <rect x="532" y="182" width="310" height="310" rx="60" fill="#96C2FA"/>
+    <rect x="182" y="532" width="310" height="310" rx="60" fill="#4A8FE8"/>
+    <rect x="532" y="532" width="310" height="310" rx="60" fill="#1F5AB8"/>
+    <rect x="100" y="100" width="824" height="824" fill="#111A2B" opacity="0.62"/>
     <circle cx="512" cy="512" r="260" fill="url(#glow)"/>
-    <rect x="412" y="382" width="80" height="260" rx="30" fill="url(#dg)" stroke="#13201A" stroke-width="16"/>
-    <rect x="532" y="382" width="80" height="260" rx="30" fill="url(#dg)" stroke="#13201A" stroke-width="16"/>
+    <rect x="412" y="382" width="80" height="260" rx="30" fill="url(#dg)" stroke="#111A2B" stroke-width="16"/>
+    <rect x="532" y="382" width="80" height="260" rx="30" fill="url(#dg)" stroke="#111A2B" stroke-width="16"/>
   </g>
   <rect x="101" y="101" width="822" height="822" rx="184" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
 </svg>

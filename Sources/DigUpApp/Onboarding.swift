@@ -238,7 +238,7 @@ struct OnboardingView: View {
         }
         .frame(width: Self.size.width, height: Self.size.height)
         .background(alignment: .top) {
-            // A soft moss glow behind the top of each step, from the icon's colors.
+            // A soft glow behind the top of each step, in the accent color.
             Brand.wash
                 .frame(height: 260)
                 .mask(LinearGradient(colors: [.black.opacity(0.10), .clear], startPoint: .top, endPoint: .bottom))
@@ -321,7 +321,7 @@ struct DownloadStatus: View {
         HStack(spacing: 7) {
             switch download.phase {
             case .ready:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(Brand.leaf)
                 Text("Model ready")
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -572,7 +572,7 @@ private struct ShortcutStep: View {
             Group {
                 if state.hotkeyWorked {
                     Label("That's it. It works from any app.", systemImage: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                        .foregroundStyle(Brand.leaf)
                 } else if let hotkey = state.model.hotkey {
                     Text("Try it now: press \(hotkey.display).")
                         .foregroundStyle(.secondary)

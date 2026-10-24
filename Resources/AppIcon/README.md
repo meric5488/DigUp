@@ -1,7 +1,7 @@
 # DigUp's icon: "One space"
 
 Four tiles, for what DigUp searches (text, pictures, sound, video), around an amber D with the find glowing in it.
-Moss palette.
+Blue palette (this fork; upstream is moss green).
 
 - `appicon.svg`: the app icon (1024 × 1024, macOS icon grid). `../AppIcon.icns` holds it at 64 px and up.
 - `appicon-small.svg`: the same without the glyphs inside the tiles, which turn to noise when small. `../AppIcon.icns`
@@ -21,5 +21,5 @@ To rebuild `AppIcon.icns` after editing a source: render both SVGs to an iconset
 from `appicon.svg`) with a renderer that draws SVG blur filters (a browser or WebKit; macOS's own SVG renderer drops
 the soft shadows), then `iconutil -c icns AppIcon.iconset -o ../AppIcon.icns`.
 
-Colors: tile #13201A; tiles #D5E6BB, #A2C78E, #64976B, #356652; the D #FFD166 → #F2A22A with a #13201A outline; the
+Colors: tile #111A2B; tiles #D3E5FF, #96C2FA, #4A8FE8, #1F5AB8; the D #FFD166 → #F2A22A with a #111A2B outline; the
 find #FFF6DA.

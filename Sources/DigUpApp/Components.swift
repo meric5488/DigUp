@@ -2,21 +2,30 @@ import AppKit
 import DigUpKit
 import SwiftUI
 
-/// The app's own colors, from its icon (moss tiles around an amber D, `Resources/AppIcon`): amber marks what DigUp
-/// finds (accent icons), moss is for brand moments (onboarding's glow and tiles); selection and controls follow the
-/// system accent color like any Mac app.
+/// The app's own colors. Icons and brand moments (onboarding's glow and tiles, the example chips) follow the system
+/// accent color, as selection and controls do; amber, the icon's D (`Resources/AppIcon`), stays for the glow around
+/// the icon and the focused line of a preview. Computed, so a new accent color shows the next time a view draws.
 enum Brand {
     static let amber = Color(red: 0.949, green: 0.635, blue: 0.165)    // #F2A22A, the D
     static let ember = Color(red: 0.851, green: 0.482, blue: 0.102)    // #D97B1A, a deeper amber that holds up on white
-    static let moss = Color(red: 0.208, green: 0.400, blue: 0.322)     // #356652, the darkest tile
-    static let leaf = Color(red: 0.310, green: 0.502, blue: 0.345)     // #4F8058
-    static let sprout = Color(red: 0.635, green: 0.780, blue: 0.557)   // #A2C78E, a light tile
-    /// Accent icons: the D's amber.
-    static let gradient = LinearGradient(colors: [amber, ember], startPoint: .top, endPoint: .bottom)
-    /// Tiles with a white symbol on them, like the icon's.
-    static let tile = LinearGradient(colors: [leaf, moss], startPoint: .top, endPoint: .bottom)
+    /// The accent color, darker (tiles' lower edge, shadows).
+    static var moss: Color { accent(mixedWith: .black, by: 0.35) }
+    static var leaf: Color { Color(nsColor: .controlAccentColor) }
+    /// The accent color, lighter (the onboarding glow).
+    static var sprout: Color { accent(mixedWith: .white, by: 0.45) }
+    /// Accent icons.
+    static var gradient: LinearGradient { LinearGradient(colors: [leaf, moss], startPoint: .top, endPoint: .bottom) }
+    /// Tiles with a white symbol on them.
+    static var tile: LinearGradient { LinearGradient(colors: [leaf, moss], startPoint: .top, endPoint: .bottom) }
     /// The soft glow behind onboarding's steps.
-    static let wash = LinearGradient(colors: [sprout, leaf], startPoint: .topLeading, endPoint: .bottomTrailing)
+    static var wash: LinearGradient {
+        LinearGradient(colors: [sprout, leaf], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    private static func accent(mixedWith other: NSColor, by fraction: CGFloat) -> Color {
+        let accent = NSColor.controlAccentColor.usingColorSpace(.sRGB) ?? .controlAccentColor
+        return Color(nsColor: accent.blended(withFraction: fraction, of: other) ?? accent)
+    }
 }
 
 /// ⇧ ⌘ Space as keycaps.

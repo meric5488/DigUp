@@ -15,16 +15,16 @@
     </radialGradient>
   </defs>
   <g clip-path="url(#body)">
-    <rect x="100" y="100" width="824" height="824" fill="#13201A"/>
-    <rect x="182" y="182" width="310" height="310" rx="60" fill="#D5E6BB"/>
-    <rect x="532" y="182" width="310" height="310" rx="60" fill="#A2C78E"/>
-    <rect x="182" y="532" width="310" height="310" rx="60" fill="#64976B"/>
-    <rect x="532" y="532" width="310" height="310" rx="60" fill="#356652"/>
-    <rect x="100" y="100" width="824" height="824" fill="#13201A" opacity="0.62"/>
+    <rect x="100" y="100" width="824" height="824" fill="#111A2B"/>
+    <rect x="182" y="182" width="310" height="310" rx="60" fill="#D3E5FF"/>
+    <rect x="532" y="182" width="310" height="310" rx="60" fill="#96C2FA"/>
+    <rect x="182" y="532" width="310" height="310" rx="60" fill="#4A8FE8"/>
+    <rect x="532" y="532" width="310" height="310" rx="60" fill="#1F5AB8"/>
+    <rect x="100" y="100" width="824" height="824" fill="#111A2B" opacity="0.62"/>
     <circle cx="512" cy="512" r="260" fill="url(#glow)"/>
     <path transform="translate(14 24)" d="M427 382 H507 A130 130 0 0 1 507 642 H427 A40 40 0 0 1 387 602 V422 A40 40 0 0 1 427 382 Z" fill="#000" opacity="0.45" filter="url(#soft)"/>
-    <path d="M427 382 H507 A130 130 0 0 1 507 642 H427 A40 40 0 0 1 387 602 V422 A40 40 0 0 1 427 382 Z" fill="url(#dg)" stroke="#13201A" stroke-width="16"/>
-    <path d="M455 440 H507 A72 72 0 0 1 507 584 H455 A10 10 0 0 1 445 574 V450 A10 10 0 0 1 455 440 Z" fill="#13201A"/>
+    <path d="M427 382 H507 A130 130 0 0 1 507 642 H427 A40 40 0 0 1 387 602 V422 A40 40 0 0 1 427 382 Z" fill="url(#dg)" stroke="#111A2B" stroke-width="16"/>
+    <path d="M455 440 H507 A72 72 0 0 1 507 584 H455 A10 10 0 0 1 445 574 V450 A10 10 0 0 1 455 440 Z" fill="#111A2B"/>
     <circle cx="512" cy="512" r="66" fill="url(#dotglow)"/>
     <circle cx="512" cy="512" r="22" fill="#FFF6DA"/>
   </g>
