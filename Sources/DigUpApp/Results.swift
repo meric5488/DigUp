@@ -57,6 +57,20 @@ struct ResultRow: Identifiable, Equatable {
         self.terms = terms
     }
 
+    /// An event or a reminder: the window lists these in a table (`AgendaTable`), not as pictures of their text.
+    var isAgenda: Bool { source?.kind == .calendar || source?.kind == .reminders }
+
+    /// The table's columns, from the item's subtitle ("Calendar · Work · 14 July 2024 at 10:30", "Reminders ·
+    /// Groceries · due 3 May 2025"): when, which calendar or list, and whether a reminder is done.
+    var agenda: (when: String, list: String, status: String) {
+        let parts = (source?.subtitle ?? "").components(separatedBy: " · ")
+        let list = parts.count > 1 ? parts[1] : ""
+        let last = parts.count > 2 ? parts[2...].joined(separator: " · ") : ""
+        guard source?.kind == .reminders else { return (last, list, "") }
+        if last.hasPrefix("due ") { return (String(last.dropFirst(4)), list, "To do") }
+        return ("", list, last == "done" ? "Done" : "To do")
+    }
+
     /// The name to show: left to right as Finder shows it, also when it starts in Arabic ("ملاحظة.md", not "md.ملاحظة").
     var title: String { "\u{200E}" + name }
 

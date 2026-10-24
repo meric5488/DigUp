@@ -113,7 +113,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         switch event.keyCode {
         case 125, 126:   // ↓ ↑
             guard modifiers.isEmpty else { return false }
-            search.move(by: event.keyCode == 125 ? search.columns : -search.columns)
+            search.moveVertically(down: event.keyCode == 125)
         case 123, 124:   // ← →
             guard modifiers.isEmpty, search.navigated || previewing else { return false }
             search.move(by: event.keyCode == 124 ? 1 : -1)
@@ -227,8 +227,12 @@ final class SearchModel {
         self.engine = engine
     }
 
-    /// Every result shown, in order (strong ones, then the weaker ones once they're unfolded).
-    var rows: [ResultRow] { results.ranked + (showWeaker ? results.weaker : []) }
+    /// Every result shown, in order: events and reminders first (the table), then the rest (the grid); strong ones,
+    /// then the weaker ones once they're unfolded.
+    var rows: [ResultRow] {
+        let shown = results.ranked + (showWeaker ? results.weaker : [])
+        return shown.filter(\.isAgenda) + shown.filter { !$0.isAgenda }
+    }
 
     /// A search of code: the Code filter, or "code:" typed.
     var isCode: Bool { filter == .code || CodeQuery.text(of: query) != nil }
@@ -254,6 +258,11 @@ final class SearchModel {
     /// The file in its app, at the page or moment that matched when the app can be told where.
     func open(_ row: ResultRow) {
         engine.open(row)
+    }
+
+    /// ↑ ↓: a line of the table, or a row of the grid.
+    func moveVertically(down: Bool) {
+        move(by: (down ? 1 : -1) * (selectedRow?.isAgenda == true ? 1 : columns))
     }
 
     func move(by step: Int) {
@@ -643,9 +652,15 @@ private struct ResultsGrid: View {
         GeometryReader { geometry in
             ScrollViewReader { proxy in
                 ScrollView {
+                    // Events and reminders: a table above the grid (a picture of their text says nothing).
+                    let agenda = search.rows.filter(\.isAgenda)
+                    if !agenda.isEmpty {
+                        AgendaTable(rows: agenda, search: search, width: geometry.size.width - 32)
+                            .padding([.horizontal, .top], 16)
+                    }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.cell.width, maximum: 230), spacing: 14)],
                               alignment: .leading, spacing: 18) {
-                        ForEach(search.results.ranked) { row in cell(row) }
+                        ForEach(search.results.ranked.filter { !$0.isAgenda }) { row in cell(row) }
                     }
                     .padding(16)
                     if !search.results.weaker.isEmpty {
@@ -657,7 +672,7 @@ private struct ResultsGrid: View {
                         if search.showWeaker {
                             LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.cell.width, maximum: 230),
                                                          spacing: 14)], alignment: .leading, spacing: 18) {
-                                ForEach(search.results.weaker) { row in cell(row).opacity(0.85) }
+                                ForEach(search.results.weaker.filter { !$0.isAgenda }) { row in cell(row).opacity(0.85) }
                             }
                             .padding(16)
                         }
@@ -681,6 +696,85 @@ private struct ResultsGrid: View {
             .id(row.id)
             .overlay(FileDragArea(url: row.url, openTitle: row.openTitle, onClick: { search.select(row) },
                                   onOpen: { search.open(row) }))
+    }
+}
+
+/// Events and reminders as a table: what, when, which calendar or list, and where an event is or whether a reminder is
+/// done. A click selects, a double click opens it in Calendar or Reminders; ↑ ↓ go line by line.
+private struct AgendaTable: View {
+    let rows: [ResultRow]
+    @Bindable var search: SearchModel
+    /// The room it has: the narrower, the fewer columns.
+    let width: CGFloat
+
+    private var showsList: Bool { width > 560 }
+    /// Where (or whether it's done): only when one of them says something, and there's room.
+    private var showsDetail: Bool { width > 760 && rows.contains { !detail(of: $0).isEmpty } }
+    private var hasEvents: Bool { rows.contains { $0.source?.kind == .calendar } }
+    private var hasReminders: Bool { rows.contains { $0.source?.kind == .reminders } }
+    private var weaker: Set<String> { Set(search.results.weaker.map(\.id)) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            line(icon: nil, title: "Title", when: "When",
+                 list: hasEvents && hasReminders ? "Calendar / List" : hasEvents ? "Calendar" : "List",
+                 detail: hasEvents && hasReminders ? "Where / Status" : hasEvents ? "Where" : "Status")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(height: 26)
+            Divider()
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, row in
+                let selected = row.id == search.selectedRow?.id
+                let columns = row.agenda
+                line(icon: row.source?.kind.symbol, title: row.name, when: columns.when, list: columns.list,
+                     detail: detail(of: row),
+                     selected: selected)
+                    .font(.system(size: 12.5))
+                    .frame(height: 30)
+                    .background(selected ? Color.accentColor
+                                : index.isMultiple(of: 2) ? Color.clear : Color.primary.opacity(0.035))
+                    .opacity(weaker.contains(row.id) ? 0.7 : 1)
+                    .id(row.id)
+                    .overlay(FileDragArea(url: row.url, openTitle: row.openTitle, onClick: { search.select(row) },
+                                          onOpen: { search.open(row) }))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Color.primary.opacity(0.1)))
+    }
+
+    private func detail(of row: ResultRow) -> String {
+        row.source?.kind == .calendar ? AgendaPlaces.place(of: row) : row.agenda.status
+    }
+
+    private func line(icon: String?, title: String, when: String, list: String, detail: String,
+                      selected: Bool = false) -> some View {
+        HStack(spacing: 12) {
+            Group {
+                if let icon { Image(systemName: icon) } else { Color.clear }
+            }
+            .frame(width: 16)
+            .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+            Text(title).lineLimit(1).frame(maxWidth: .infinity, alignment: .leading)
+            Text(when).lineLimit(1).frame(width: 190, alignment: .leading)
+            if showsList { Text(list).lineLimit(1).frame(width: 200, alignment: .leading) }
+            if showsDetail { Text(detail).lineLimit(1).frame(width: 150, alignment: .leading) }
+        }
+        .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+        .padding(.horizontal, 12)
+    }
+}
+
+/// Where an event is, from its file's "Where:" line (read once per file).
+private enum AgendaPlaces {
+    private static var places: [String: String] = [:]
+
+    static func place(of row: ResultRow) -> String {
+        if let place = places[row.id] { return place }
+        let text = (try? String(contentsOf: row.url, encoding: .utf8)) ?? ""
+        let place = text.split(separator: "\n").first { $0.hasPrefix("Where: ") }.map { String($0.dropFirst(7)) } ?? ""
+        places[row.id] = place
+        return place
     }
 }
 
