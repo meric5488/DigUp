@@ -1,5 +1,6 @@
 import AppKit
 import DigUpKit
+import DigUpSources
 import Observation
 import Quartz
 import SwiftUI
@@ -310,11 +311,19 @@ final class SearchModel {
             guard !Task.isCancelled, current == generation else { return }
             let all = await engine.search(text, vector: vector, prefixLast: false, limit: 120)
             let shown = filter == nil ? all : await engine.search(text, vector: vector, prefixLast: false,
-                                                                    kinds: filter!.kinds, limit: 120)
+                                                                    kinds: filter!.kinds, within: filter!.folders,
+                                                                    limit: 120)
             try? await Task.sleep(until: showAt, tolerance: .milliseconds(1), clock: .continuous)
             guard !Task.isCancelled, current == generation else { return }
+            // A source's item counts for its kind too: a photo of the library is an image.
             var counts: [ResultGroupKind: Int] = [:]
-            for hit in all.prefix(Searcher.strongCount(all)) { counts[ResultGroupKind(hit.kind), default: 0] += 1 }
+            let sources = ResultGroupKind.sources.map { ($0, $0.folders ?? []) }
+            for hit in all.prefix(Searcher.strongCount(all)) {
+                counts[ResultGroupKind(hit.kind), default: 0] += 1
+                for (group, folders) in sources where folders.contains(where: { hit.path.hasPrefix($0 + "/") }) {
+                    counts[group, default: 0] += 1
+                }
+            }
             self.counts = counts
             results = ResultSet(shown, query: text)
             showWeaker = false
@@ -411,7 +420,8 @@ struct SearchWindowView: View {
             }
             .padding(.leading, 78)   // beside the window buttons
             .frame(height: 52)
-            KindFilters(search: search, showsCode: model.hasCode)
+            KindFilters(search: search, showsCode: model.hasCode,
+                        sources: ResultGroupKind.sources.filter { model.settings.sources.enabled.contains($0.source!) })
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 10)
@@ -496,37 +506,54 @@ struct SearchWindowView: View {
     }
 }
 
-/// All · Screenshots 4 · Images 9 · …: what the query found of each kind; click to see only that kind. With code search
-/// on, Code after them: a search of code alone (as "code:" is).
+/// All · Screenshots 4 · Images 9 · …: what the query found of each kind; click to see only that kind. Then the
+/// sources that are on (Mail, Notes…, iCloud Drive). With code search on, Code after them: a search of code alone (as
+/// "code:" is).
 private struct KindFilters: View {
     @Bindable var search: SearchModel
     var showsCode = false
+    var sources: [ResultGroupKind] = []
 
     var body: some View {
-        HStack(spacing: 6) {
-            chip(title: "All", symbol: nil, count: nil, selected: search.filter == nil && !search.isCode) {
-                search.filter = nil
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                chips
             }
-            ForEach(ResultGroupKind.files, id: \.self) { kind in
+        }
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    @ViewBuilder private var chips: some View {
+        chip(title: "All", symbol: nil, count: nil, selected: search.filter == nil && !search.isCode, shortcut: 1) {
+            search.filter = nil
+        }
+        ForEach(Array(ResultGroupKind.files.enumerated()), id: \.element) { index, kind in
+            chip(title: kind.title, symbol: kind.symbol, count: search.isCode ? nil : search.counts[kind],
+                 selected: search.filter == kind && !search.isCode, shortcut: index + 2) {
+                search.filter = search.filter == kind ? nil : kind
+            }
+        }
+        if !sources.isEmpty {
+            Divider().frame(height: 16).padding(.horizontal, 4)
+            ForEach(sources, id: \.self) { kind in
                 chip(title: kind.title, symbol: kind.symbol, count: search.isCode ? nil : search.counts[kind],
                      selected: search.filter == kind && !search.isCode) {
                     search.filter = search.filter == kind ? nil : kind
                 }
             }
-            if showsCode {
-                Divider().frame(height: 16).padding(.horizontal, 4)
-                chip(title: "Code", symbol: FileKind.code.symbol, count: search.isCode ? search.counts[.code] : nil,
-                     selected: search.isCode, shortcut: 7) {
-                    search.filter = search.filter == .code ? nil : .code
-                }
+        }
+        if showsCode {
+            Divider().frame(height: 16).padding(.horizontal, 4)
+            chip(title: "Code", symbol: FileKind.code.symbol, count: search.isCode ? search.counts[.code] : nil,
+                 selected: search.isCode, shortcut: 7) {
+                search.filter = search.filter == .code ? nil : .code
             }
         }
     }
 
     private func chip(title: String, symbol: String?, count: Int?, selected: Bool, shortcut: Int? = nil,
                       action: @escaping () -> Void) -> some View {
-        let number = shortcut ?? (ResultGroupKind.files.firstIndex { $0.title == title }).map { $0 + 2 } ?? 1
-        return Button(action: action) {
+        Button(action: action) {
             HStack(spacing: 5) {
                 if let symbol { Image(systemName: symbol).font(.system(size: 10.5)) }
                 Text(title)
@@ -543,7 +570,7 @@ private struct KindFilters: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("\(title) (⌘\(number))")
+        .help(shortcut.map { "\(title) (⌘\($0))" } ?? title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }

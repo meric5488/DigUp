@@ -97,6 +97,16 @@ public final class Searcher {
         vectorsLoaded = false
     }
 
+    /// The files under these folders: a range of `files.path` ("/" sorts just before "0").
+    private func files(within folders: [String]) throws -> Set<Int64> {
+        var ids = Set<Int64>()
+        for folder in folders {
+            try store.db.query("SELECT id FROM files WHERE path > ? AND path < ?",
+                               [.text(folder + "/"), .text(folder + "0")]) { ids.insert($0.int(0)) }
+        }
+        return ids
+    }
+
     private func reloadFiles() throws {
         fileKind.removeAll(keepingCapacity: true)
         try store.db.query("SELECT id, kind FROM files") { row in
@@ -112,12 +122,18 @@ public final class Searcher {
     public static let wordWeight = 2.0
     public static let codeWordWeight = 1.0
 
-    public func search(_ text: String, queryVector: [Float]?, kinds: Set<FileKind>? = nil, limit: Int = 20,
-                       zGate: Double = 2.0, wordWeight: Double? = nil, prefixLast: Bool = false) throws -> [SearchHit] {
+    /// `within`: only files under these folders (paths without a trailing "/"), as well as of `kinds`.
+    public func search(_ text: String, queryVector: [Float]?, kinds: Set<FileKind>? = nil, within: [String]? = nil,
+                       limit: Int = 20, zGate: Double = 2.0, wordWeight: Double? = nil,
+                       prefixLast: Bool = false) throws -> [SearchHit] {
         let wordWeight = wordWeight ?? (isCode ? Self.codeWordWeight : Self.wordWeight)
         if queryVector != nil, !vectorsLoaded { try reload() }
         let fileKind = self.fileKind
-        let allowed = { (file: Int64) -> Bool in kinds == nil || fileKind[file].map { kinds!.contains($0) } ?? false }
+        let inFolders = try within.map(files(within:))
+        let allowed = { (file: Int64) -> Bool in
+            (kinds == nil || fileKind[file].map { kinds!.contains($0) } ?? false)
+                && (inFolders?.contains(file) ?? true)
+        }
 
         // Meaning: score every vector on this query's scale (`meaning`), keep each file's best segment.
         var best: [Int64: (z: Double, cosine: Double, row: Int)] = [:]

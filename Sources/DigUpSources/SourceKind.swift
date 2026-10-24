@@ -5,9 +5,10 @@ import Foundation
 /// Each source is turned into ordinary files in a folder of its own (`SourcesLayout.root`), which the engine indexes
 /// like any chosen folder: a mail becomes a text file (and its attachments files beside it), a photo a JPEG, an event
 /// or a reminder a short text. `SourceCatalog` remembers, for each of those files, what it stands for, so a result
-/// shows the mail's subject and opens in Mail rather than in a text editor.
+/// shows the mail's subject and opens in Mail rather than in a text editor. iCloud Drive is the exception: its files
+/// are files already, indexed where they are (`SourcesLayout.iCloudFolders`), with no copies and no catalog.
 public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
-    case mail, notes, calendar, reminders, photos
+    case mail, notes, calendar, reminders, photos, icloud
 
     public var id: String { rawValue }
 
@@ -18,8 +19,12 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
         case .calendar: "Calendar"
         case .reminders: "Reminders"
         case .photos: "Photos"
+        case .icloud: "iCloud Drive"
         }
     }
+
+    /// Its items are copies under `SourcesLayout.root` (all but iCloud Drive).
+    public var isCopied: Bool { self != .icloud }
 
     /// The folder its files go into, under `SourcesLayout.root`.
     public var folderName: String { title }
@@ -32,6 +37,7 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
         case .calendar: "calendar"
         case .reminders: "checklist"
         case .photos: "photo.on.rectangle"
+        case .icloud: "icloud"
         }
     }
 
@@ -43,13 +49,14 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
         case .calendar: "com.apple.iCal"
         case .reminders: "com.apple.reminders"
         case .photos: "com.apple.Photos"
+        case .icloud: "com.apple.finder"
         }
     }
 
     /// What it takes for DigUp to read this source.
     public var accessNeeded: String {
         switch self {
-        case .mail, .notes: "Full Disk Access"
+        case .mail, .notes, .icloud: "Full Disk Access"
         case .calendar: "access to Calendars"
         case .reminders: "access to Reminders"
         case .photos: "access to Photos"
@@ -79,8 +86,31 @@ public struct SourceOptions: Sendable, Equatable {
     /// The longest side of the picture written for each photo, in pixels. The model sees 140–280 soft tokens of it,
     /// so a full-size original would only cost disk and time.
     public var photoSide = 1280
+    /// iCloud Drive: files only in iCloud ("Optimize Mac Storage") are downloaded, so they can be searched.
+    public var icloudDownload = false
+    /// Everything each source has, whatever the limits above (`effective`).
+    public var syncEverything = false
+    /// Completed reminders of any age, not only the last year's (`effective`, with `syncEverything`).
+    var allCompletedReminders = false
 
     public init() {}
+
+    /// What a sync follows. With `syncEverything` the limits are lifted: all mail with its attachments, events from 30
+    /// years back to 5 ahead, every completed reminder, every video whatever its length; photos are written at 2048 px.
+    public var effective: SourceOptions {
+        guard syncEverything else { return self }
+        var options = self
+        options.mailYears = 0
+        options.mailAttachments = true
+        options.calendarPastYears = 30
+        options.calendarFutureYears = 5
+        options.completedReminders = true
+        options.allCompletedReminders = true
+        options.photoVideos = true
+        options.photoVideoMinutes = 24 * 60
+        options.photoSide = 2048
+        return options
+    }
 
     public var anyEnabled: Bool { !enabled.isEmpty }
 }
@@ -100,6 +130,41 @@ public enum SourcesLayout {
 
     public static func folder(_ kind: SourceKind) -> URL {
         root.appendingPathComponent(kind.folderName, isDirectory: true)
+    }
+
+    /// iCloud Drive's own folder.
+    public static let iCloudDrive = mobileDocuments.appendingPathComponent("com~apple~CloudDocs", isDirectory: true)
+    static let mobileDocuments = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/Mobile Documents", isDirectory: true).resolvingSymlinksInPath()
+
+    /// What the engine indexes for iCloud Drive, where it is: its own folder and the apps' folders the Finder shows in
+    /// it (Pages, Numbers, third-party apps' "Documents"). Not the apps' private data beside those.
+    public static func iCloudFolders() -> [URL] {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: iCloudDrive.path) else { return [] }
+        var folders = [iCloudDrive.standardizedFileURL]
+        let containers = (try? fm.contentsOfDirectory(atPath: mobileDocuments.path)) ?? []
+        for name in containers.sorted() where !name.hasPrefix(".") && name != iCloudDrive.lastPathComponent {
+            let documents = mobileDocuments.appendingPathComponent("\(name)/Documents", isDirectory: true)
+            var isFolder: ObjCBool = false
+            if fm.fileExists(atPath: documents.path, isDirectory: &isFolder), isFolder.boolValue {
+                folders.append(documents.standardizedFileURL)
+            }
+        }
+        return folders
+    }
+
+    /// Where files in iCloud are: Mobile Documents, and Desktop and Documents when "Desktop & Documents Folders" is on
+    /// (iCloud Drive then holds links to them).
+    public static func iCloudPaths() -> [String] {
+        var paths = [mobileDocuments.path]
+        for name in ["Desktop", "Documents"] {
+            let link = iCloudDrive.appendingPathComponent(name).path
+            if let target = try? FileManager.default.destinationOfSymbolicLink(atPath: link) {
+                paths.append((target as NSString).resolvingSymlinksInPath)
+            }
+        }
+        return paths
     }
 
     /// The path of `url` relative to `root` ("Mail/INBOX/2024/…"), or nil when it isn't under it.

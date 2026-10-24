@@ -78,6 +78,24 @@ import Testing
         #expect(try searcher.search("gr", queryVector: nil).isEmpty)
     }
 
+    @Test func searchWithinFoldersKeepsTheirFilesOnly() throws {
+        let store = try IndexStore(directory: folder)
+        for (index, path) in ["/src/Mail/INBOX/invoice.txt", "/src/Mail0/invoice.txt", "/src/Notes/invoice.txt",
+                              "/docs/invoice.txt"].enumerated() {
+            let id = try store.insert(Candidate(path: path, kind: .doc, size: 1, mtime: 1, inode: UInt64(index + 1),
+                                                device: 1))
+            try store.addSegment(file: id, kind: .chunk, modality: .text, loc: 1, text: "The invoice for the kitchen.")
+        }
+        let searcher = try Searcher(store: store, loadVectors: false)
+        #expect(try searcher.search("invoice", queryVector: nil).count == 4)
+        // A folder's own files, not those of a folder whose name only starts the same ("Mail0").
+        #expect(try searcher.search("invoice", queryVector: nil, within: ["/src/Mail"]).map(\.path)
+                == ["/src/Mail/INBOX/invoice.txt"])
+        #expect(Set(try searcher.search("invoice", queryVector: nil, within: ["/src/Mail", "/src/Notes"]).map(\.path))
+                == ["/src/Mail/INBOX/invoice.txt", "/src/Notes/invoice.txt"])
+        #expect(try searcher.search("invoice", queryVector: nil, kinds: [.image], within: ["/src/Mail"]).isEmpty)
+    }
+
     @Test func garbledPageTextIsNoticed() {
         // As PDFKit reads Bengali and Arabic pages made by Quartz/WebKit (testbed/make_lang.swift).
         let glyphOrder = "বািড় ভাড়ার চিপ ধানমি ৭ নর রােডর িতন বডরেমর াট মািসক ২৫,০০০ টাকা ভাড়ায় দওয়া হেলা। ভাড়ায়া দুই মােসর"

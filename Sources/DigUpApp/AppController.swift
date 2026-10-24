@@ -184,7 +184,7 @@ final class AppController {
         AppSettings.save(sources: options)
         model.settings.sources = options
         sources.setOptions(options)
-        engine.setSourcesIndexed(options.anyEnabled)
+        engine.setSources(options)
         log("sources: \(SourceKind.allCases.filter(options.enabled.contains).map(\.rawValue))")
     }
 

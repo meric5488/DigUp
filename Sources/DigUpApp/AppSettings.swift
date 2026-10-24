@@ -43,7 +43,7 @@ nonisolated struct AppSettings: Sendable {
     var codeEditor: String?
     /// The code index catches up once the code folders have been quiet this long (`-codeQuietSeconds`, default 60).
     var codeQuietSeconds: Double
-    /// Mail, Notes, Calendar, Reminders and Photos: which are searched, and how much of each (`SourceOptions`).
+    /// Mail, Notes, Calendar, Reminders, Photos and iCloud Drive: which are searched, and how much of each (`SourceOptions`).
     var sources: SourceOptions
 
     static let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
@@ -111,6 +111,8 @@ nonisolated struct AppSettings: Sendable {
         options.photoVideos = bool("sourcePhotoVideos", options.photoVideos)
         options.photoVideoMinutes = max(1, int("sourcePhotoVideoMinutes", options.photoVideoMinutes))
         options.photoSide = min(4096, max(512, int("sourcePhotoSide", options.photoSide)))
+        options.icloudDownload = bool("sourceICloudDownload", options.icloudDownload)
+        options.syncEverything = bool("sourceSyncEverything", options.syncEverything)
         return options
     }
 
@@ -126,6 +128,8 @@ nonisolated struct AppSettings: Sendable {
         defaults.set(options.photoVideos, forKey: "sourcePhotoVideos")
         defaults.set(options.photoVideoMinutes, forKey: "sourcePhotoVideoMinutes")
         defaults.set(options.photoSide, forKey: "sourcePhotoSide")
+        defaults.set(options.icloudDownload, forKey: "sourceICloudDownload")
+        defaults.set(options.syncEverything, forKey: "sourceSyncEverything")
     }
 
     /// A list of folders: a plist array, or paths joined with ":" (the form launch arguments use).

@@ -167,7 +167,8 @@ final class RemindersProvider: SourceProvider {
         let yearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? .distantPast
         let reminders = box.reminders.filter { reminder in
             guard reminder.isCompleted else { return true }
-            return options.completedReminders && (reminder.completionDate ?? .distantPast) >= yearAgo
+            return options.completedReminders
+                && (options.allCompletedReminders || (reminder.completionDate ?? .distantPast) >= yearAgo)
         }
         context.setTotal(reminders.count)
         for reminder in reminders {

@@ -143,12 +143,13 @@ nonisolated final class Engine: @unchecked Sendable {
     private var excludedTypes: [String]
     private var codeRoots: [URL]
     private var codeExcluded: [URL]
-    /// The sources' folder (`SourcesLayout.root`) while any source is on: indexed and searched like a chosen folder,
-    /// but never listed with them.
+    /// The sources' folder (`SourcesLayout.root`) while any source with copies is on (all but iCloud Drive), and
+    /// iCloud Drive's folders while it's on: indexed and searched like chosen folders, but never listed with them.
     private var sourcesRoot: URL?
+    private var iCloudRoots: [URL] = []
 
-    /// The chosen folders and the sources' folder. Under `lock`.
-    private var indexedRoots: [URL] { roots + (sourcesRoot.map { [$0] } ?? []) }
+    /// The chosen folders and the sources'. Under `lock`.
+    private var indexedRoots: [URL] { roots + (sourcesRoot.map { [$0] } ?? []) + iCloudRoots }
 
     // indexQueue only
     /// Code search was turned off: the code index goes once no helper has it open.
@@ -188,7 +189,8 @@ nonisolated final class Engine: @unchecked Sendable {
         codeRoots = settings.codeRoots
         codeExcluded = settings.codeExcluded
         codeQuietSeconds = settings.codeQuietSeconds
-        sourcesRoot = settings.sources.anyEnabled ? Self.makeSourcesRoot() : nil
+        sourcesRoot = settings.sources.enabled.contains(where: \.isCopied) ? Self.makeSourcesRoot() : nil
+        iCloudRoots = settings.sources.enabled.contains(.icloud) ? SourcesLayout.iCloudFolders() : []
         pruneWanted = !settings.roots.isEmpty || settings.sources.anyEnabled
         self.backfillBlocker = backfillBlocker
         self.heldUntil = heldUntil
@@ -310,15 +312,20 @@ nonisolated final class Engine: @unchecked Sendable {
         return SourcesLayout.root
     }
 
-    /// Any source on (or none): the sources' folder is indexed with the chosen ones (or its files leave the index).
-    func setSourcesIndexed(_ on: Bool) {
+    /// The sources that are on: the sources' folder is indexed with the chosen ones while any source with copies is,
+    /// iCloud Drive's folders while it is (or their files leave the index).
+    func setSources(_ options: SourceOptions) {
+        let copies = options.enabled.contains(where: \.isCopied)
+        let cloud = options.enabled.contains(.icloud) ? SourcesLayout.iCloudFolders() : []
         let changed = lock.withLock { () -> Bool in
-            guard (sourcesRoot != nil) != on else { return false }
-            sourcesRoot = on ? Self.makeSourcesRoot() : nil
+            guard (sourcesRoot != nil) != copies || iCloudRoots != cloud else { return false }
+            sourcesRoot = copies ? Self.makeSourcesRoot() : nil
+            iCloudRoots = cloud
             return true
         }
         guard changed else { return }
-        log("sources: \(on ? "indexed" : "no longer indexed")")
+        log("sources: copies \(copies ? "indexed" : "not indexed"), iCloud Drive "
+            + (cloud.isEmpty ? "not indexed" : "\(cloud.map { tildePath($0.path) })"))
         watchQueue.async { [self] in startWatching() }
         indexQueue.async { [self] in
             pruneWanted = true
@@ -866,8 +873,9 @@ nonisolated final class Engine: @unchecked Sendable {
     /// shows while the query encoder starts. Files that are gone (deleted since the last sync, or on a drive that's
     /// unplugged) are left out.
     /// `code`: the code index (its own folders), never anything else.
+    /// `within`: only files under these folders (a source's, iCloud Drive's).
     func search(_ text: String, vector: QueryVector?, prefixLast: Bool, kinds: Set<FileKind>? = nil,
-                limit: Int = 40, code: Bool = false) async -> [SearchHit] {
+                within: [String]? = nil, limit: Int = 40, code: Bool = false) async -> [SearchHit] {
         if code { return await searchCode(text, vector: vector, prefixLast: prefixLast, limit: limit) }
         return await withCheckedContinuation { continuation in
             searchQueue.async { [self] in
@@ -879,8 +887,8 @@ nonisolated final class Engine: @unchecked Sendable {
                     }
                     values = nil
                 }
-                let hits = try? searcher?.search(text, queryVector: values, kinds: kinds, limit: limit,
-                                                 prefixLast: prefixLast)
+                let hits = try? searcher?.search(text, queryVector: values, kinds: kinds, within: within,
+                                                 limit: limit, prefixLast: prefixLast)
                 // Only files that are searched (`FolderSelection`'s rule, as the crawler walks them) and of types not
                 // skipped: a removed folder's rows (or a newly skipped type's) can outlive it until a helper syncs
                 // (indexing was paused, or the app quit first).

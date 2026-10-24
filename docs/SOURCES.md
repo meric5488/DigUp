@@ -1,4 +1,4 @@
-# Sources: Mail, Notes, Calendar, Reminders and Photos
+# Sources: Mail, Notes, Calendar, Reminders, Photos and iCloud Drive
 
 This fork of DigUp searches your Apple apps' content together with your folders, by what's in it, with the same
 model (EmbeddingGemma 2), entirely on your Mac. Turn sources on in **Settings → Sources**.
@@ -10,10 +10,21 @@ model (EmbeddingGemma 2), entirely on your Mac. Turn sources on in **Settings �
 | Calendar | events from 5 years back to 1 year ahead (adjustable); holidays and birthdays off by default | EventKit (asks for access to Calendars) | Calendar, at the event |
 | Reminders | open reminders, and completed ones of the last year | EventKit (asks for access to Reminders) | Reminders |
 | Photos | every photo of the library, iCloud Photos included; videos optional | PhotoKit (asks for access to Photos) | Photos, at the photo |
+| iCloud Drive | its files and the apps' folders in it (Pages, Numbers…), where they are; those only in iCloud when downloading is on | `~/Library/Mobile Documents` (may need **Full Disk Access**) | their app |
+
+**Sync everything** lifts the limits: all mail and its attachments, events from 30 years back to 5 ahead, every
+completed reminder, every photo and video, with pictures at 2048 px.
+
+## Searching them
+
+The search window has a filter for each source that's on, after the kinds (All, Screenshots, Images…): **Mail**,
+**Notes**, **Calendar**, **Reminders**, **Photos** (the Photos library, iCloud Photos included) and **iCloud Drive**
+(its files, and Desktop and Documents when "Desktop & Documents Folders" is on). A source's item counts for its kind
+too: a photo of the library is also an image. The panel groups results by source.
 
 ## How it works
 
-Each item becomes an ordinary file in `~/Library/Application Support/DigUp/Sources.noindex`, which the engine indexes
+Each item (but iCloud Drive's, which are files already, indexed where they are) becomes an ordinary file in `~/Library/Application Support/DigUp/Sources.noindex`, which the engine indexes
 like a chosen folder (but never lists with your folders):
 
 - a mail, note, event or reminder becomes a short text file named after it (date, subject, sender), with its people,
@@ -32,7 +43,7 @@ its copies, and their entries leave the index.
 
 ## Permissions
 
-- **Mail and Notes**: System Settings → Privacy & Security → **Full Disk Access** → add DigUp. Turning either on opens
+- **Mail, Notes and iCloud Drive**: System Settings → Privacy & Security → **Full Disk Access** → add DigUp. Turning either on opens
   that pane; come back to DigUp and it starts.
 - **Calendar, Reminders, Photos**: macOS asks the first time you turn them on.
 - **Opening a note or a photo** asks Notes or Photos to show it (AppleScript): macOS asks once whether DigUp may
@@ -53,8 +64,11 @@ DigUp without sources): to update, pull and rebuild.
   - `SourceCatalog`: what each file stands for, and each item's version.
   - `SourceWriter`, `SourceNames`: files and their names.
   - `Providers/`: `MailProvider` (with `MailMessage` and `MIME`, an .emlx/MIME reader), `NotesProvider` (gzip and
-    protocol buffers), `CalendarProvider` and `RemindersProvider` (EventKit), `PhotosProvider` (PhotoKit).
+    protocol buffers), `CalendarProvider` and `RemindersProvider` (EventKit), `PhotosProvider` (PhotoKit),
+    `ICloudDriveProvider` (counts iCloud Drive's files, downloads those only in iCloud when asked).
   - `SourceAccess`, `SourceOpener`: permissions, opening results in their apps.
-- App: `Engine` indexes `SourcesLayout.root` with the chosen folders; `ResultRow` takes a source item's title and
+- App: `Engine` indexes `SourcesLayout.root` and `SourcesLayout.iCloudFolders()` with the chosen folders; the
+  window's source filters (`ResultGroupKind.sources`) search within their folders (`Searcher.search(within:)`); `ResultRow` takes a source item's title and
   subtitle; `Engine.open` hands source items to `SourceOpener`; `SourcesSettings` is the Settings tab.
-- Tests: `swift test --filter DigUpSourcesTests` (the mail reader, the note reader, file names).
+- Tests: `swift test --filter DigUpSourcesTests` (the mail reader, the note reader, file names, the options), and
+  `SearchTextTests` for searching within folders.

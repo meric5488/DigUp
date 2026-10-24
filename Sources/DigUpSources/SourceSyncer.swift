@@ -35,7 +35,7 @@ public final class SourceSyncer: @unchecked Sendable {
     private var notificationTokens: [NSObjectProtocol] = []
 
     /// The order sources sync in: the quick ones first.
-    static let order: [SourceKind] = [.reminders, .calendar, .notes, .mail, .photos]
+    static let order: [SourceKind] = [.reminders, .calendar, .icloud, .notes, .mail, .photos]
 
     public init(options: SourceOptions, catalog: SourceCatalog = .shared, onState: @escaping StateHandler) {
         self.options = options
@@ -43,7 +43,7 @@ public final class SourceSyncer: @unchecked Sendable {
         self.onState = onState
         providers = [
             .mail: MailProvider(), .notes: NotesProvider(), .calendar: CalendarProvider(),
-            .reminders: RemindersProvider(), .photos: PhotosProvider(),
+            .reminders: RemindersProvider(), .photos: PhotosProvider(), .icloud: ICloudDriveProvider(),
         ]
         for kind in SourceKind.allCases {
             states[kind] = options.enabled.contains(kind) ? .ready(items: 0, at: .distantPast) : .off
@@ -117,12 +117,14 @@ public final class SourceSyncer: @unchecked Sendable {
     /// The options that change what a source writes: when they change, it syncs again.
     private static func matters(_ kind: SourceKind, _ options: SourceOptions) -> String {
         guard options.enabled.contains(kind) else { return "off" }
+        let options = options.effective
         switch kind {
         case .mail: return "\(options.mailYears) \(options.mailJunkAndTrash) \(options.mailAttachments)"
         case .notes: return "on"
         case .calendar: return "\(options.calendarPastYears) \(options.calendarFutureYears) \(options.calendarSubscribed)"
-        case .reminders: return "\(options.completedReminders)"
+        case .reminders: return "\(options.completedReminders) \(options.allCompletedReminders)"
         case .photos: return "\(options.photoVideos) \(options.photoVideoMinutes) \(options.photoSide)"
+        case .icloud: return "\(options.icloudDownload)"
         }
     }
 
@@ -166,7 +168,7 @@ public final class SourceSyncer: @unchecked Sendable {
         let clock = Date()
         setState(kind, .syncing(done: 0, total: 0))
         let writer = SourceWriter(kind: kind, catalog: catalog)
-        let context = SyncContext(options: options, writer: writer, known: catalog.stamps(of: kind),
+        let context = SyncContext(options: options.effective, writer: writer, known: catalog.stamps(of: kind),
                                   report: { [weak self] done, total in
                                       self?.setState(kind, .syncing(done: done, total: total))
                                   },
@@ -184,10 +186,10 @@ public final class SourceSyncer: @unchecked Sendable {
             if context.cancelled {
                 // Stopped for new options or a pause: it starts again when they allow.
                 lock.withLock { _ = pending.insert(kind) }
-                setState(kind, .ready(items: catalog.counts()[kind] ?? 0, at: Date()))
+                setState(kind, .ready(items: provider.itemCount ?? catalog.counts()[kind] ?? 0, at: Date()))
                 return
             }
-            let count = catalog.counts()[kind] ?? 0
+            let count = provider.itemCount ?? catalog.counts()[kind] ?? 0
             SourceLog.write("\(kind.rawValue): synced, \(count) items (\(Int(Date().timeIntervalSince(clock))) s)")
             setState(kind, .ready(items: count, at: Date()))
         } catch {

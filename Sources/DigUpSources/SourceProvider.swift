@@ -11,6 +11,13 @@ protocol SourceProvider: AnyObject {
     /// Brings the source's files up to date: writes what's new or changed, removes what's gone. `report` says how far
     /// along it is; `cancelled` is checked between items.
     func sync(_ context: SyncContext) throws
+
+    /// How many items it has, when it keeps no catalog of them (iCloud Drive); else nil, and the catalog counts them.
+    var itemCount: Int? { get }
+}
+
+extension SourceProvider {
+    var itemCount: Int? { nil }
 }
 
 /// What a provider syncs with: the options, the stamps of what's already written, the writer, progress.

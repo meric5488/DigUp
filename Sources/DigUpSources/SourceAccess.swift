@@ -6,7 +6,7 @@ import Photos
 /// Asking macOS for what each source needs, and opening its privacy settings. Call from the main thread.
 public enum SourceAccess {
     /// Asks for access when macOS can be asked (Calendars, Reminders, Photos: it shows its own prompt the first time).
-    /// Mail and Notes need Full Disk Access, which only you can give in System Settings: that pane opens instead.
+    /// Mail, Notes and iCloud Drive need Full Disk Access, which only you can give in System Settings: that pane opens instead.
     /// `completion` gets whether the source can be read now, on the main thread.
     public static func request(_ kind: SourceKind, completion: @escaping @Sendable (Bool) -> Void) {
         func finish(_ granted: Bool) { DispatchQueue.main.async { completion(granted) } }
@@ -33,6 +33,10 @@ public enum SourceAccess {
             let readable = NotesProvider().accessProblem() == nil
             if !readable { openPrivacySettings(for: kind) }
             finish(readable)
+        case .icloud:
+            let readable = ICloudDriveProvider().accessProblem() == nil
+            if !readable { openPrivacySettings(for: kind) }
+            finish(readable)
         }
     }
 
@@ -44,13 +48,14 @@ public enum SourceAccess {
         case .calendar: CalendarProvider().accessProblem()
         case .reminders: RemindersProvider().accessProblem()
         case .photos: PhotosProvider().accessProblem()
+        case .icloud: ICloudDriveProvider().accessProblem()
         }
     }
 
     /// System Settings → Privacy & Security, at the list that concerns this source.
     public static func openPrivacySettings(for kind: SourceKind) {
         let anchor = switch kind {
-        case .mail, .notes: "Privacy_AllFiles"
+        case .mail, .notes, .icloud: "Privacy_AllFiles"
         case .calendar: "Privacy_Calendars"
         case .reminders: "Privacy_Reminders"
         case .photos: "Privacy_Photos"

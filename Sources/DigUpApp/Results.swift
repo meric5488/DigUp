@@ -160,9 +160,48 @@ enum ResultGroupKind: CaseIterable {
     case screenshots, images, documents, video, audio
     /// Code search's results (the code index; a search of it never shows anything else).
     case code
+    /// The sources' items (by where their files are, `folders`): mail, notes, events, reminders, the Photos library's
+    /// pictures, and iCloud Drive's files.
+    case mail, notes, calendar, reminders, photos, icloud
 
     /// The kinds of files the main index holds: the window's kind filters, ⌘2 to ⌘6.
     static let files: [ResultGroupKind] = [.screenshots, .images, .documents, .video, .audio]
+    /// The sources' filters, after the kinds' (those of the sources that are on).
+    static let sources: [ResultGroupKind] = [.mail, .notes, .calendar, .reminders, .photos, .icloud]
+
+    init(_ source: SourceKind) {
+        switch source {
+        case .mail: self = .mail
+        case .notes: self = .notes
+        case .calendar: self = .calendar
+        case .reminders: self = .reminders
+        case .photos: self = .photos
+        case .icloud: self = .icloud
+        }
+    }
+
+    /// A row's group: its source's when it stands for a source's item, else its kind's.
+    init(_ row: ResultRow) {
+        self = row.source.map { Self($0.kind) } ?? Self(row.kind)
+    }
+
+    var source: SourceKind? {
+        switch self {
+        case .mail: .mail
+        case .notes: .notes
+        case .calendar: .calendar
+        case .reminders: .reminders
+        case .photos: .photos
+        case .icloud: .icloud
+        default: nil
+        }
+    }
+
+    /// A source's files are those under these folders (nil: a kind, any folder).
+    var folders: [String]? {
+        guard let source else { return nil }
+        return source == .icloud ? SourcesLayout.iCloudPaths() : [SourcesLayout.folder(source).path]
+    }
 
     init(_ kind: FileKind) {
         switch kind {
@@ -183,6 +222,7 @@ enum ResultGroupKind: CaseIterable {
         case .video: "Video"
         case .audio: "Audio"
         case .code: "Code"
+        case .mail, .notes, .calendar, .reminders, .photos, .icloud: source!.title
         }
     }
 
@@ -194,10 +234,12 @@ enum ResultGroupKind: CaseIterable {
         case .video: FileKind.video.symbol
         case .audio: FileKind.audio.symbol
         case .code: FileKind.code.symbol
+        case .mail, .notes, .calendar, .reminders, .photos, .icloud: source!.symbol
         }
     }
 
-    var kinds: Set<FileKind> {
+    /// The kinds of files it is (nil: a source, any kind).
+    var kinds: Set<FileKind>? {
         switch self {
         case .screenshots: [.screenshot]
         case .images: [.image]
@@ -205,6 +247,7 @@ enum ResultGroupKind: CaseIterable {
         case .video: [.video]
         case .audio: [.audio]
         case .code: [.code]
+        case .mail, .notes, .calendar, .reminders, .photos, .icloud: nil
         }
     }
 }
@@ -236,7 +279,7 @@ struct ResultSet: Equatable {
         var byGroup: [ResultGroupKind: [ResultRow]] = [:]
         ranked = hits.prefix(strong).map { ResultRow($0, terms: terms) }
         for row in ranked {
-            let group = ResultGroupKind(row.kind)
+            let group = ResultGroupKind(row)
             if byGroup[group] == nil { order.append(group) }
             byGroup[group, default: []].append(row)
         }

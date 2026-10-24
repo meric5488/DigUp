@@ -2,16 +2,17 @@ import AppKit
 import DigUpSources
 import SwiftUI
 
-/// Settings → Sources: Mail, Notes, Calendar, Reminders and Photos, each on or off, how each is doing, and how much of
-/// each to search.
+/// Settings → Sources: Mail, Notes, Calendar, Reminders, Photos and iCloud Drive, each on or off, how each is doing, and
+/// how much of each to search (or all of it).
 struct SourcesSettings: View {
     @Bindable var state: SettingsState
 
-    private var options: SourceOptions { state.model.settings.sources }
+    /// What the sources follow: with "Sync everything", its lifted limits show where the limits were (`effective`).
+    private var options: SourceOptions { state.model.settings.sources.effective }
 
     /// A setting of the sources that's saved, and followed, as soon as it changes.
     private func binding<T>(_ keyPath: WritableKeyPath<SourceOptions, T>) -> Binding<T> {
-        Binding(get: { state.model.settings.sources[keyPath: keyPath] },
+        Binding(get: { state.model.settings.sources.effective[keyPath: keyPath] },
                 set: { value in
                     var options = state.model.settings.sources
                     options[keyPath: keyPath] = value
@@ -24,9 +25,10 @@ struct SourcesSettings: View {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Search your Apple apps").font(.system(size: 13, weight: .semibold))
-                    Text("Mail, notes, events, reminders and photos are searched with your folders, by what's in "
-                         + "them. A result shows the mail's subject or the note's title, and opens in its app. "
-                         + "DigUp keeps a copy of each as a small file on this Mac to search it; nothing leaves the Mac.")
+                    Text("Mail, notes, events, reminders, photos and iCloud Drive are searched with your folders, by "
+                         + "what's in them. A result shows the mail's subject or the note's title, and opens in its "
+                         + "app. DigUp keeps a copy of each as a small file on this Mac to search it (iCloud Drive's "
+                         + "files are searched where they are); nothing leaves the Mac.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -39,6 +41,15 @@ struct SourcesSettings: View {
             } header: {
                 Text("Sources")
             }
+            Section {
+                Toggle("Sync everything", isOn: binding(\.syncEverything))
+            } footer: {
+                Text("All mail and its attachments, events from 30 years back to 5 ahead, every completed reminder, "
+                     + "every photo and video (pictures at 2048 px). It takes longer, and more disk space.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if options.enabled.contains(.mail) {
                 Section("Mail") {
                     Picker("Mail received in the last", selection: binding(\.mailYears)) {
@@ -48,7 +59,9 @@ struct SourcesSettings: View {
                         Text("10 years").tag(10)
                         Text("All time").tag(0)
                     }
+                    .disabled(options.syncEverything)
                     Toggle("Search attachments (PDFs, documents, pictures)", isOn: binding(\.mailAttachments))
+                        .disabled(options.syncEverything)
                     Toggle("Include junk and deleted mail", isOn: binding(\.mailJunkAndTrash))
                 }
             }
@@ -56,14 +69,17 @@ struct SourcesSettings: View {
                 Section("Calendar") {
                     Stepper("From \(options.calendarPastYears) \(options.calendarPastYears == 1 ? "year" : "years") ago",
                             value: binding(\.calendarPastYears), in: 0...20)
+                    .disabled(options.syncEverything)
                     Stepper("To \(options.calendarFutureYears) \(options.calendarFutureYears == 1 ? "year" : "years") ahead",
                             value: binding(\.calendarFutureYears), in: 0...5)
+                    .disabled(options.syncEverything)
                     Toggle("Include holidays, birthdays and subscribed calendars", isOn: binding(\.calendarSubscribed))
                 }
             }
             if options.enabled.contains(.reminders) {
                 Section("Reminders") {
                     Toggle("Include completed reminders (of the last year)", isOn: binding(\.completedReminders))
+                        .disabled(options.syncEverything)
                 }
             }
             if options.enabled.contains(.photos) {
@@ -73,8 +89,10 @@ struct SourcesSettings: View {
                         Text("Medium (1280 px)").tag(1280)
                         Text("Large (2048 px)").tag(2048)
                     }
+                    .disabled(options.syncEverything)
                     Toggle("Search videos too", isOn: binding(\.photoVideos))
-                    if options.photoVideos {
+                        .disabled(options.syncEverything)
+                    if options.photoVideos && !options.syncEverything {
                         Stepper("Videos up to \(options.photoVideoMinutes) min", value: binding(\.photoVideoMinutes),
                                 in: 1...120, step: 5)
                     }
@@ -83,6 +101,20 @@ struct SourcesSettings: View {
                 } footer: {
                     Text("Photos only in iCloud are downloaded at this size, not in full. A video is copied small "
                          + "(640×480): it takes longer, and disk space.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if options.enabled.contains(.icloud) {
+                Section {
+                    Toggle("Download files that are only in iCloud", isOn: binding(\.icloudDownload))
+                } header: {
+                    Text("iCloud Drive")
+                } footer: {
+                    Text("iCloud Drive's files are searched where they are. Those only in iCloud (Optimize Mac "
+                         + "Storage) can't be read until they're downloaded: this downloads them, and they take disk "
+                         + "space.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
