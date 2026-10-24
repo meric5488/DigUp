@@ -201,7 +201,7 @@ final class NotesProvider: SourceProvider {
     }
 
     /// Accounts/<account>/Media/<media identifier>/[<generation>/]<file name> (older Notes: Media/<identifier>/…).
-    static func mediaFile(_ media: Media) -> URL? {
+    private static func mediaFile(_ media: Media) -> URL? {
         let fm = FileManager.default
         var bases: [URL] = [container.appendingPathComponent("Media/\(media.identifier)", isDirectory: true)]
         let accounts = container.appendingPathComponent("Accounts", isDirectory: true)

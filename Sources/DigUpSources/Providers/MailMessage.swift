@@ -151,7 +151,7 @@ struct MailMessage {
     /// own. Lines quoted with ">" go too.
     static func withoutQuotedReplies(_ text: String) -> String {
         var kept: [Substring] = []
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        for line in text.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if trimmed.hasPrefix(">") { continue }
             if isReplyMarker(trimmed) { break }

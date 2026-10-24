@@ -96,7 +96,8 @@ enum MIME {
     static func parseHeaders(_ bytes: [UInt8]) -> [(name: String, value: String)] {
         let text = String(bytes: bytes, encoding: .utf8) ?? String(bytes: bytes, encoding: .isoLatin1) ?? ""
         var headers: [(name: String, value: String)] = []
-        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+        // "\r\n" is one Character: split on it as well as on "\n".
+        for rawLine in text.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r\n" }) {
             var line = Substring(rawLine)
             if line.hasSuffix("\r") { line = line.dropLast() }
             if let first = line.first, first == " " || first == "\t" {

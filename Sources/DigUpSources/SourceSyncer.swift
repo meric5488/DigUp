@@ -218,7 +218,7 @@ public final class SourceSyncer: @unchecked Sendable {
         timer.schedule(deadline: .now() + 20 * 60, repeating: 20 * 60, leeway: .seconds(60))
         timer.setEventHandler { [weak self] in
             guard let self else { return }
-            schedule(Set(lock.withLock { options.enabled }), after: 0)
+            self.schedule(Set(self.lock.withLock { self.options.enabled }), after: 0)
         }
         timer.resume()
         self.timer = timer
