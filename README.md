@@ -30,6 +30,9 @@ DigUp brings that to the files on your computer, on a Mac, on Windows or on Linu
 reads the pictures, PDFs, documents, recordings and videos in them. Then describe what you're looking for, in your own
 words, and it finds the match, whatever kind of file it is.
 
+> **This fork also searches Mail, Notes, Calendar, Reminders and Photos** (iCloud included), with the same model and
+> entirely on your Mac: turn them on in Settings → Sources. See [docs/SOURCES.md](docs/SOURCES.md).
+
 ## What you can find
 
 - "zebra in a video" opens the clip at the moment the zebra shows up

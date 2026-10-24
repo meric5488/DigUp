@@ -1,4 +1,5 @@
 import DigUpKit
+import DigUpSources
 import Foundation
 
 /// What to index, where the index and the model live, and the hotkey.
@@ -42,6 +43,8 @@ nonisolated struct AppSettings: Sendable {
     var codeEditor: String?
     /// The code index catches up once the code folders have been quiet this long (`-codeQuietSeconds`, default 60).
     var codeQuietSeconds: Double
+    /// Mail, Notes, Calendar, Reminders and Photos: which are searched, and how much of each (`SourceOptions`).
+    var sources: SourceOptions
 
     static let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent("Library/Application Support/DigUp")
@@ -84,7 +87,45 @@ nonisolated struct AppSettings: Sendable {
             codeExcluded: folders(defaults, "codeExcludedFolders"),
             codeEditor: defaults.string(forKey: "codeEditor"),
             codeQuietSeconds: defaults.object(forKey: "codeQuietSeconds") == nil
-                ? 60 : max(1, defaults.double(forKey: "codeQuietSeconds")))
+                ? 60 : max(1, defaults.double(forKey: "codeQuietSeconds")),
+            sources: loadSources(defaults))
+    }
+
+    /// The sources' settings: "sources" lists the ones that are on, the rest have defaults (`SourceOptions`).
+    private static func loadSources(_ defaults: UserDefaults) -> SourceOptions {
+        var options = SourceOptions()
+        options.enabled = Set((defaults.stringArray(forKey: "sources") ?? []).compactMap(SourceKind.init(rawValue:)))
+        func int(_ key: String, _ fallback: Int) -> Int {
+            defaults.object(forKey: key) == nil ? fallback : defaults.integer(forKey: key)
+        }
+        func bool(_ key: String, _ fallback: Bool) -> Bool {
+            defaults.object(forKey: key) == nil ? fallback : defaults.bool(forKey: key)
+        }
+        options.mailYears = max(0, int("sourceMailYears", options.mailYears))
+        options.mailJunkAndTrash = bool("sourceMailJunkAndTrash", options.mailJunkAndTrash)
+        options.mailAttachments = bool("sourceMailAttachments", options.mailAttachments)
+        options.calendarPastYears = max(0, int("sourceCalendarPastYears", options.calendarPastYears))
+        options.calendarFutureYears = max(0, int("sourceCalendarFutureYears", options.calendarFutureYears))
+        options.calendarSubscribed = bool("sourceCalendarSubscribed", options.calendarSubscribed)
+        options.completedReminders = bool("sourceCompletedReminders", options.completedReminders)
+        options.photoVideos = bool("sourcePhotoVideos", options.photoVideos)
+        options.photoVideoMinutes = max(1, int("sourcePhotoVideoMinutes", options.photoVideoMinutes))
+        options.photoSide = min(4096, max(512, int("sourcePhotoSide", options.photoSide)))
+        return options
+    }
+
+    static func save(sources options: SourceOptions) {
+        defaults.set(SourceKind.allCases.filter(options.enabled.contains).map(\.rawValue), forKey: "sources")
+        defaults.set(options.mailYears, forKey: "sourceMailYears")
+        defaults.set(options.mailJunkAndTrash, forKey: "sourceMailJunkAndTrash")
+        defaults.set(options.mailAttachments, forKey: "sourceMailAttachments")
+        defaults.set(options.calendarPastYears, forKey: "sourceCalendarPastYears")
+        defaults.set(options.calendarFutureYears, forKey: "sourceCalendarFutureYears")
+        defaults.set(options.calendarSubscribed, forKey: "sourceCalendarSubscribed")
+        defaults.set(options.completedReminders, forKey: "sourceCompletedReminders")
+        defaults.set(options.photoVideos, forKey: "sourcePhotoVideos")
+        defaults.set(options.photoVideoMinutes, forKey: "sourcePhotoVideoMinutes")
+        defaults.set(options.photoSide, forKey: "sourcePhotoSide")
     }
 
     /// A list of folders: a plist array, or paths joined with ":" (the form launch arguments use).

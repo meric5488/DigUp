@@ -2,6 +2,7 @@ import AVFoundation
 import AVKit
 import AppKit
 import DigUpKit
+import DigUpSources
 import Observation
 import PDFKit
 import Quartz
@@ -43,6 +44,7 @@ extension ResultRow {
     /// opens with your words in Preview's search, but Preview doesn't go to the page by itself. Code opens in the
     /// editor chosen for it: "Open in Zed".
     var openTitle: String {
+        if let source { return "Open in \(source.kind.title)" }
         if kind == .code, !CodeEditor.current.id.isEmpty { return "Open in \(CodeEditor.current.name)" }
         if let moment, moment >= 1, Opener.jumpsToMoments(url) { return "Open at \(Self.clock(moment))" }
         return "Open"
@@ -81,6 +83,11 @@ extension Engine {
     /// Opens `row` in its app: a PDF with words from its page to search for, a recording at its moment when the app
     /// can be told it (see `Opener`).
     func open(_ row: ResultRow) {
+        // A mail, note, event, reminder or photo opens in its app, not the file that stands for it.
+        if let source = row.source {
+            log("open: \(source.kind.rawValue) “\(row.name)”")
+            return SourceOpener.open(source)
+        }
         if row.kind == .code { return CodeEditor.current.open(row.url, line: row.codeLine) }
         guard let page = row.page else { return Opener.open(row, searching: nil) }
         let (url, words) = (row.url, row.foundWords + row.terms)

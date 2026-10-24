@@ -1,5 +1,6 @@
 import AppKit
 import DigUpKit
+import DigUpSources
 
 /// One search result as the panel and the window show it: a file, the part of it that matched, and why.
 struct ResultRow: Identifiable, Equatable {
@@ -22,13 +23,20 @@ struct ResultRow: Identifiable, Equatable {
     let info: [String: String]
     /// The query's words (`Searcher.terms`): what the preview highlights on a page or in a passage.
     let terms: [String]
+    /// A mail, note, event, reminder or photo (a file in the sources' folder stands for it): shown by its subject or
+    /// title, and opened in its app.
+    let source: SourceItem?
 
     init(_ hit: SearchHit, terms: [String] = []) {
         id = hit.path
         url = URL(fileURLWithPath: hit.path)
-        name = url.lastPathComponent
-        // Code says where it is in its repo: "billing/payments".
-        if hit.kind == .code, let repo = hit.info["repo"], hit.path.hasPrefix(repo + "/") {
+        source = SourceCatalog.shared.item(atPath: hit.path)
+        name = source?.title ?? url.lastPathComponent
+        if let source {
+            // "Mail · INBOX · Jean Dupont" where a file shows its folder.
+            folder = source.subtitle
+        } else if hit.kind == .code, let repo = hit.info["repo"], hit.path.hasPrefix(repo + "/") {
+            // Code says where it is in its repo: "billing/payments".
             let parent = (repo as NSString).deletingLastPathComponent
             folder = String(url.deletingLastPathComponent().path.dropFirst(parent.count + 1))
         } else {

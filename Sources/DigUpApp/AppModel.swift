@@ -1,4 +1,5 @@
 import AppKit
+import DigUpSources
 import Observation
 
 /// State the menubar, the panel and the windows share. Engine updates arrive on the main thread.
@@ -10,13 +11,16 @@ final class AppModel {
     let download: ModelDownload
     /// A newer DigUp the daily check found ("0.6.1"), until you open it (`Updates`).
     var updateAvailable: String?
+    /// How each source (Mail, Notes, Calendar, Reminders, Photos) is doing (`SourceSyncer`).
+    var sourceStates: [SourceKind: SourceState] = [:]
 
     init(settings: AppSettings, download: ModelDownload) {
         self.settings = settings
         self.download = download
     }
 
-    var hasFolders: Bool { !settings.roots.isEmpty }
+    /// Something to index: chosen folders, or a source.
+    var hasFolders: Bool { !settings.roots.isEmpty || settings.sources.anyEnabled }
     /// Code search is on (there are code folders).
     var hasCode: Bool { !settings.codeRoots.isEmpty }
 

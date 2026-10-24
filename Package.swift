@@ -58,11 +58,20 @@ let appDependencies: [Package.Dependency] = [
     .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0"),
 ]
 let appTargets: [Target] = [
+    // Mail, Notes, Calendar, Reminders and Photos, turned into files the engine indexes (and a catalog of what each
+    // file stands for, so results open in their app). Swift 5 mode: it works with EventKit's and PhotoKit's callbacks
+    // on its own queue, under its own locks.
+    .target(
+        name: "DigUpSources",
+        dependencies: ["DigUpKit"],
+        swiftSettings: [.swiftLanguageMode(.v5)]
+    ),
+    .testTarget(name: "DigUpSourcesTests", dependencies: ["DigUpSources"], swiftSettings: [.swiftLanguageMode(.v5)]),
     // The menubar + hotkey app. build.sh wraps it into build.noindex/DigUp.app. (The product can't be called
     // "DigUp": on a case-insensitive disk it would collide with the `digup` CLI binary.)
     .executableTarget(
         name: "DigUpApp",
-        dependencies: ["DigUpKit", .product(name: "Sparkle", package: "Sparkle")],
+        dependencies: ["DigUpKit", "DigUpSources", .product(name: "Sparkle", package: "Sparkle")],
         swiftSettings: [.defaultIsolation(MainActor.self)],
         linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]
     ),

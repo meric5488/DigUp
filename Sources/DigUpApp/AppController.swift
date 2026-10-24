@@ -1,5 +1,6 @@
 import AppKit
 import DigUpKit
+import DigUpSources
 import ServiceManagement
 
 /// Owns the app's parts (engine, model download, hotkey, panel, windows, menu) and carries out what they ask for:
@@ -14,6 +15,8 @@ final class AppController {
     let download: ModelDownload
     let hotkeys = HotkeyCenter()
     let updates: Updates
+    /// Keeps Mail, Notes, Calendar, Reminders and Photos turned into files the engine indexes.
+    let sources: SourceSyncer
     private let power: PowerPolicy
     private let schedule: IndexSchedule
     private(set) var panel: SearchPanelController!
@@ -46,6 +49,12 @@ final class AppController {
             if model.statusLine != before { log("status: \(model.statusLine)") }
         }
         engineRef = engine
+        SourceLog.sink = { line in log(line) }
+        sources = SourceSyncer(options: settings.sources) { states in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { model.sourceStates = states }
+            }
+        }
         Estimates.indexDirectory = settings.indexDirectory
         self.download = download
         self.model = model
@@ -65,7 +74,10 @@ final class AppController {
         statusMenu.onOpenWindow = { [weak self] in self?.showSearchWindow() }
         statusMenu.onSettings = { [weak self] in self?.showSettings() }
         statusMenu.onChooseFolders = { [weak self] in self?.chooseFolders() }
-        statusMenu.onPauseChanged = { [weak self] paused in self?.engine.setPaused(paused) }
+        statusMenu.onPauseChanged = { [weak self] paused in
+            self?.engine.setPaused(paused)
+            self?.sources.setPaused(paused)
+        }
         statusMenu.onCheckForUpdates = { [weak self] in self?.updates.checkNow() }
         updates.onSessionEnded = { [weak self] in self?.windowClosed() }
         updates.start()
@@ -85,6 +97,12 @@ final class AppController {
         CodeEditor.current = CodeEditor.chosen(model.settings.codeEditor)
         download.onReady = { [weak self] in self?.engine.modelArrived() }
         engine.start()
+        sources.start()
+        // Back from System Settings (Full Disk Access, a privacy switch): sources that were waiting for it try again.
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification,
+                                                                object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.retrySourcesWaitingForAccess() }
+        })
         let settings = model.settings
         if !settings.onboarded, settings.roots.isEmpty {
             showOnboarding()
@@ -156,6 +174,47 @@ final class AppController {
         AppSettings.save(excludedTypes: types)
         model.settings.excludedTypes = types
         engine.setFolders(roots: model.settings.roots, excluded: model.settings.excludedFolders, excludedTypes: types)
+    }
+
+    // MARK: Sources (Mail, Notes, Calendar, Reminders, Photos)
+
+    /// The sources' options from now on: saved, and both the syncer and the engine follow.
+    func applySources(_ options: SourceOptions) {
+        guard options != model.settings.sources else { return }
+        AppSettings.save(sources: options)
+        model.settings.sources = options
+        sources.setOptions(options)
+        engine.setSourcesIndexed(options.anyEnabled)
+        log("sources: \(SourceKind.allCases.filter(options.enabled.contains).map(\.rawValue))")
+    }
+
+    /// Turns a source on or off. Turning one on asks macOS for what it needs first (its own prompt for Calendars,
+    /// Reminders and Photos; System Settings for Full Disk Access), then turns it on either way: its state says what's
+    /// missing until it's given.
+    func setSource(_ kind: SourceKind, on: Bool) {
+        var options = model.settings.sources
+        guard on else {
+            options.enabled.remove(kind)
+            applySources(options)
+            return
+        }
+        SourceAccess.request(kind) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                var options = self.model.settings.sources
+                options.enabled.insert(kind)
+                self.applySources(options)
+                self.sources.syncNow([kind])
+            }
+        }
+    }
+
+    private func retrySourcesWaitingForAccess() {
+        let waiting = model.sourceStates.filter { kind, state in
+            if case .needsAccess = state { return SourceAccess.problem(kind) == nil }
+            return false
+        }.map(\.key)
+        if !waiting.isEmpty { sources.syncNow(Set(waiting)) }
     }
 
     // MARK: Code search

@@ -1,4 +1,5 @@
 import DigUpKit
+import DigUpSources
 import Foundation
 
 /// What the menubar shows about the index.
@@ -142,6 +143,12 @@ nonisolated final class Engine: @unchecked Sendable {
     private var excludedTypes: [String]
     private var codeRoots: [URL]
     private var codeExcluded: [URL]
+    /// The sources' folder (`SourcesLayout.root`) while any source is on: indexed and searched like a chosen folder,
+    /// but never listed with them.
+    private var sourcesRoot: URL?
+
+    /// The chosen folders and the sources' folder. Under `lock`.
+    private var indexedRoots: [URL] { roots + (sourcesRoot.map { [$0] } ?? []) }
 
     // indexQueue only
     /// Code search was turned off: the code index goes once no helper has it open.
@@ -181,7 +188,8 @@ nonisolated final class Engine: @unchecked Sendable {
         codeRoots = settings.codeRoots
         codeExcluded = settings.codeExcluded
         codeQuietSeconds = settings.codeQuietSeconds
-        pruneWanted = !settings.roots.isEmpty
+        sourcesRoot = settings.sources.anyEnabled ? Self.makeSourcesRoot() : nil
+        pruneWanted = !settings.roots.isEmpty || settings.sources.anyEnabled
         self.backfillBlocker = backfillBlocker
         self.heldUntil = heldUntil
         self.onStatus = onStatus
@@ -296,6 +304,33 @@ nonisolated final class Engine: @unchecked Sendable {
         }
     }
 
+    /// The sources' folder is there before anything is written into it, so the watcher sees the first files arrive.
+    private static func makeSourcesRoot() -> URL {
+        try? FileManager.default.createDirectory(at: SourcesLayout.root, withIntermediateDirectories: true)
+        return SourcesLayout.root
+    }
+
+    /// Any source on (or none): the sources' folder is indexed with the chosen ones (or its files leave the index).
+    func setSourcesIndexed(_ on: Bool) {
+        let changed = lock.withLock { () -> Bool in
+            guard (sourcesRoot != nil) != on else { return false }
+            sourcesRoot = on ? Self.makeSourcesRoot() : nil
+            return true
+        }
+        guard changed else { return }
+        log("sources: \(on ? "indexed" : "no longer indexed")")
+        watchQueue.async { [self] in startWatching() }
+        indexQueue.async { [self] in
+            pruneWanted = true
+            if helper != nil {
+                restartHelper = true
+                stopHelper()
+            } else {
+                startHelper()
+            }
+        }
+    }
+
     /// The model has finished downloading: index what's waiting, and meaning search may start.
     func modelArrived() {
         update { $0.waitingForModel = false }
@@ -397,7 +432,7 @@ nonisolated final class Engine: @unchecked Sendable {
     /// Watches the chosen folders that are there (a missing one is picked up when a drive connects).
     private func startWatching() {
         watcher = nil
-        let (roots, excluded) = lock.withLock { (self.roots, self.excluded) }
+        let (roots, excluded) = lock.withLock { (self.indexedRoots, self.excluded) }
         let present = roots.filter(AppSettings.isFolder)
         func spellings(_ folders: [URL]) -> [String] {
             Array(Set(folders.flatMap { [$0.path, FolderSelection.realPath($0.path)] }))
@@ -488,7 +523,7 @@ nonisolated final class Engine: @unchecked Sendable {
     /// its last file. Before the model has downloaded it only syncs (file names become searchable) and exits.
     private func startHelper() {
         let (roots, excluded, types, paused, backfill): ([URL], [URL], [String], Bool, Bool) = lock.withLock {
-            (self.roots, self.excluded, self.excludedTypes, self.paused || heldUntil != nil, backfillBlocker == nil)
+            (self.indexedRoots, self.excluded, self.excludedTypes, self.paused || heldUntil != nil, backfillBlocker == nil)
         }
         let (codeRoots, codeExcluded) = lock.withLock { (self.codeRoots, self.codeExcluded) }
         guard helper == nil, !paused else {
@@ -850,7 +885,7 @@ nonisolated final class Engine: @unchecked Sendable {
                 // skipped: a removed folder's rows (or a newly skipped type's) can outlive it until a helper syncs
                 // (indexing was paused, or the app quit first).
                 let (chosen, excluded, types): ([URL], [URL], Set<String>) = lock.withLock {
-                    (self.roots, self.excluded, Set(self.excludedTypes))
+                    (self.indexedRoots, self.excluded, Set(self.excludedTypes))
                 }
                 let folders = chosen.map(\.path), skipped = excluded.map(\.path)
                 continuation.resume(returning: (hits ?? []).filter { hit in

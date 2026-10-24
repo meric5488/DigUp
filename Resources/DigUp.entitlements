@@ -5,5 +5,11 @@
 	<!-- Opening a recording at the moment that matched asks QuickTime Player to go there (macOS asks you once). -->
 	<key>com.apple.security.automation.apple-events</key>
 	<true/>
+	<!-- Sources (Settings → Sources): the hardened runtime lets an app ask for Calendars (and Reminders) and Photos
+	     only with these. Mail and Notes need Full Disk Access instead, which no entitlement gives. -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
+	<key>com.apple.security.personal-information.photos-library</key>
+	<true/>
 </dict>
 </plist>

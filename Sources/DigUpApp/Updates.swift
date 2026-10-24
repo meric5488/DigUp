@@ -25,6 +25,12 @@ final class Updates: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate
     func start() {
         let defaults = UserDefaults.standard
         guard defaults.string(forKey: "defaultsSuite") == nil || defaults.bool(forKey: "debugUpdates") else { return }
+        // The Sources fork has no feed of its own: an update from upstream would replace it with a DigUp without
+        // Mail, Notes, Calendar, Reminders and Photos. Updating it is rebuilding it (git pull, ./build.sh).
+        guard Bundle.main.object(forInfoDictionaryKey: "SUFeedURL") != nil else {
+            log("updates: off in this build (no feed)")
+            return
+        }
         controller.startUpdater()
         log("updates: \(controller.updater.automaticallyChecksForUpdates ? "checking daily" : "automatic checks off") "
             + "at \(controller.updater.feedURL?.absoluteString ?? "no feed")")
