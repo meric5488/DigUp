@@ -12,8 +12,8 @@ final class CalendarProvider: SourceProvider {
     func accessProblem() -> String? {
         switch EKEventStore.authorizationStatus(for: .event) {
         case .fullAccess: return nil
-        case .notDetermined: return "Turn Calendar off and on again to let DigUp read your calendars."
-        default: return "Allow DigUp to read your calendars: System Settings → Privacy & Security → Calendars."
+        case .notDetermined: return "Turn Calendar off and on again to let Fouineur read your calendars."
+        default: return "Allow Fouineur to read your calendars: System Settings → Privacy & Security → Calendars."
         }
     }
 
@@ -144,8 +144,8 @@ final class RemindersProvider: SourceProvider {
     func accessProblem() -> String? {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess: return nil
-        case .notDetermined: return "Turn Reminders off and on again to let DigUp read your reminders."
-        default: return "Allow DigUp to read your reminders: System Settings → Privacy & Security → Reminders."
+        case .notDetermined: return "Turn Reminders off and on again to let Fouineur read your reminders."
+        default: return "Allow Fouineur to read your reminders: System Settings → Privacy & Security → Reminders."
         }
     }
 

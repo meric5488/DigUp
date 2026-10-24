@@ -27,7 +27,7 @@ struct SourcesSettings: View {
                     Text("Search your Apple apps").font(.system(size: 13, weight: .semibold))
                     Text("Mail, notes, events, reminders, photos and iCloud Drive are searched with your folders, by "
                          + "what's in them. A result shows the mail's subject or the note's title, and opens in its "
-                         + "app. DigUp keeps a copy of each as a small file on this Mac to search it (iCloud Drive's "
+                         + "app. Fouineur keeps a copy of each as a small file on this Mac to search it (iCloud Drive's "
                          + "files are searched where they are); nothing leaves the Mac.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)

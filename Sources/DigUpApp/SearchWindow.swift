@@ -47,7 +47,7 @@ final class SearchWindowController: NSObject, NSWindowDelegate {
         window.toolbarStyle = .unified
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.title = "DigUp"
+        window.title = "Fouineur"
         window.minSize = NSSize(width: 820, height: 520)
         window.isReleasedWhenClosed = false
         window.delegate = self
@@ -465,7 +465,7 @@ struct SearchWindowView: View {
             VStack(spacing: 0) {
                 BrandMark()
                 Text("Choose folders to search").font(.system(size: 20, weight: .bold)).padding(.top, 18)
-                Text("DigUp only looks where you tell it to.")
+                Text("Fouineur only looks where you tell it to.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
@@ -512,7 +512,7 @@ struct SearchWindowView: View {
                 Button {
                     app.updates.checkNow()
                 } label: {
-                    Label("DigUp \(version) is available", systemImage: "arrow.down.circle.fill")
+                    Label("Fouineur \(version) is available", systemImage: "arrow.down.circle.fill")
                         .foregroundStyle(Brand.ember)
                 }
                 .buttonStyle(.plain)
@@ -828,7 +828,7 @@ private struct CodeOffOrHint: View {
                 .foregroundStyle(Brand.gradient)
             if phase == .codeOff {
                 Text("Code search is off").font(.system(size: 17, weight: .semibold))
-                Text("DigUp can find code by what it does, in the folders you pick. Code gets an index of its own and "
+                Text("Fouineur can find code by what it does, in the folders you pick. Code gets an index of its own and "
                      + "never shows up in other searches.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -971,7 +971,7 @@ private struct SearchHome: View {
                 if let hotkey = model.hotkey {
                     HStack(spacing: 6) {
                         Keycaps(caps: hotkey.caps, size: 10)
-                        Text("opens DigUp from any app")
+                        Text("opens Fouineur from any app")
                     }
                 }
             }

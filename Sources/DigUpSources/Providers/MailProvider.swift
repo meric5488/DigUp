@@ -32,7 +32,7 @@ final class MailProvider: SourceProvider {
         do {
             _ = try FileManager.default.contentsOfDirectory(atPath: Self.mailDirectory.path)
         } catch {
-            return "Give DigUp Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Mail."
+            return "Give Fouineur Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Mail."
         }
         if versionFolder() == nil { return "Mail has no messages on this Mac yet." }
         return nil

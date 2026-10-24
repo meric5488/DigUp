@@ -5,19 +5,19 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>DigUp</string>
+	<string>Fouineur</string>
 	<key>CFBundleExecutable</key>
-	<string>DigUp</string>
+	<string>Fouineur</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.abdurrahim.DigUp</string>
+	<string>com.meric5488.Fouineur</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>DigUp</string>
+	<string>Fouineur</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -31,27 +31,27 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>DigUp asks QuickTime Player to open a recording at the moment that matched your search, and Notes or Photos to show the note or photo you found.</string>
+	<string>Fouineur asks QuickTime Player to open a recording at the moment that matched your search, and Notes or Photos to show the note or photo you found.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>DigUp searches your events by what's in them when you turn Calendar on in its settings. Everything stays on this Mac.</string>
+	<string>Fouineur searches your events by what's in them when you turn Calendar on in its settings. Everything stays on this Mac.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>DigUp searches your events by what's in them when you turn Calendar on in its settings. Everything stays on this Mac.</string>
+	<string>Fouineur searches your events by what's in them when you turn Calendar on in its settings. Everything stays on this Mac.</string>
 	<key>NSRemindersFullAccessUsageDescription</key>
-	<string>DigUp searches your reminders by what's in them when you turn Reminders on in its settings. Everything stays on this Mac.</string>
+	<string>Fouineur searches your reminders by what's in them when you turn Reminders on in its settings. Everything stays on this Mac.</string>
 	<key>NSRemindersUsageDescription</key>
-	<string>DigUp searches your reminders by what's in them when you turn Reminders on in its settings. Everything stays on this Mac.</string>
+	<string>Fouineur searches your reminders by what's in them when you turn Reminders on in its settings. Everything stays on this Mac.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>DigUp searches your photos by what's in them when you turn Photos on in its settings. Everything stays on this Mac.</string>
+	<string>Fouineur searches your photos by what's in them when you turn Photos on in its settings. Everything stays on this Mac.</string>
 	<key>NSDesktopFolderUsageDescription</key>
-	<string>DigUp indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
+	<string>Fouineur indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
 	<key>NSDocumentsFolderUsageDescription</key>
-	<string>DigUp indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
+	<string>Fouineur indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
 	<key>NSDownloadsFolderUsageDescription</key>
-	<string>DigUp indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
+	<string>Fouineur indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSRemovableVolumesUsageDescription</key>
-	<string>DigUp indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
+	<string>Fouineur indexes the folders you choose so you can search them by describing what's inside. Everything stays on this Mac.</string>
 	<key>SUEnableAutomaticChecks</key>
 	<false/>
 	<key>SUPublicEDKey</key>

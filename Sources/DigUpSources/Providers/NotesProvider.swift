@@ -25,7 +25,7 @@ final class NotesProvider: SourceProvider {
             return "Notes has no notes on this Mac yet."
         }
         guard let handle = try? FileHandle(forReadingFrom: Self.database) else {
-            return "Give DigUp Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Notes."
+            return "Give Fouineur Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Notes."
         }
         try? handle.close()
         return nil
@@ -79,7 +79,7 @@ final class NotesProvider: SourceProvider {
         do {
             try fm.copyItem(at: Self.database, to: target)
         } catch {
-            throw SourceError("Can't read Notes' database. Give DigUp Full Disk Access.")
+            throw SourceError("Can't read Notes' database. Give Fouineur Full Disk Access.")
         }
         for suffix in ["-wal", "-shm"] {
             let source = URL(fileURLWithPath: Self.database.path + suffix)
@@ -107,7 +107,7 @@ final class NotesProvider: SourceProvider {
     /// The column names change between macOS versions (ZTITLE1, ZCREATIONDATE3…): each is used if it's there.
     private func readNotes(_ db: Database, columns: Set<String>) throws -> [Note] {
         guard columns.contains("ZTITLE1"), columns.contains("ZIDENTIFIER") else {
-            throw SourceError("This version of Notes stores notes in a way DigUp doesn't know yet")
+            throw SourceError("This version of Notes stores notes in a way Fouineur doesn't know yet")
         }
         let modified = ["ZMODIFICATIONDATE1", "ZMODIFICATIONDATE"].first(where: columns.contains) ?? "NULL"
         let created = ["ZCREATIONDATE3", "ZCREATIONDATE2", "ZCREATIONDATE1", "ZCREATIONDATE"]

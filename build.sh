@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds build.noindex/DigUp.app, signed with the hardened runtime (as releases are, so dev builds behave the same).
+# Builds build.noindex/Fouineur.app, signed with the hardened runtime (as releases are, so dev builds behave the same).
 #   ./build.sh                       signed with the identity named in .sign-id (one line, gitignored), so macOS keeps
 #                                    folder permissions across rebuilds; ad-hoc without it (macOS then asks again
 #                                    after each build)
@@ -12,7 +12,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP_NAME="DigUp"
+APP_NAME="Fouineur"
 # ".noindex" keeps Spotlight (and the Apps list) from showing this staging copy.
 APP="build.noindex/$APP_NAME.app"
 
@@ -37,7 +37,7 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 # The binary is DigUpApp in SwiftPM (it can't share a name with the `digup` CLI on a case-insensitive disk).
 cp "$BIN_DIR/DigUpApp" "$APP/Contents/MacOS/$APP_NAME"
-# The indexing helper lives in Helpers/: next to DigUp in MacOS/ it would collide on a case-insensitive disk.
+# The indexing helper lives in Helpers/: next to Fouineur in MacOS/ it would collide on a case-insensitive disk.
 cp "$BIN_DIR/digup" "$APP/Contents/Helpers/digup"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 xcrun actool --compile "$APP/Contents/Resources" --platform macosx --target-device mac --minimum-deployment-target 14.0 \

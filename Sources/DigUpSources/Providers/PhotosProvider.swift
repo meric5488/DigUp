@@ -19,8 +19,8 @@ final class PhotosProvider: SourceProvider {
     func accessProblem() -> String? {
         switch PHPhotoLibrary.authorizationStatus(for: .readWrite) {
         case .authorized, .limited: return nil
-        case .notDetermined: return "Turn Photos off and on again to let DigUp read your library."
-        default: return "Allow DigUp to use your photos: System Settings → Privacy & Security → Photos."
+        case .notDetermined: return "Turn Photos off and on again to let Fouineur read your library."
+        default: return "Allow Fouineur to use your photos: System Settings → Privacy & Security → Photos."
         }
     }
 

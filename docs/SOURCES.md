@@ -1,9 +1,9 @@
 # Sources: Mail, Notes, Calendar, Reminders, Photos and iCloud Drive
 
-This fork of DigUp searches your Apple apps' content together with your folders, by what's in it, with the same
+**Fouineur**, this fork of DigUp, searches your Apple apps' content together with your folders, by what's in it, with the same
 model (EmbeddingGemma 2), entirely on your Mac. Turn sources on in **Settings → Sources**.
 
-| Source | What's searched | How DigUp reads it | Opens in |
+| Source | What's searched | How Fouineur reads it | Opens in |
 | --- | --- | --- | --- |
 | Mail | every account Mail has (iCloud, Gmail, Exchange…): subject, people, text, and attachments (PDFs, documents, pictures, recordings) | Mail's own store in `~/Library/Mail` (needs **Full Disk Access**) | Mail, at the message |
 | Notes | every note except locked ones and Recently Deleted, with its pictures, scans and PDFs | Notes' database in its group container (needs **Full Disk Access**) | Notes, at the note |
@@ -24,7 +24,7 @@ too: a photo of the library is also an image. The panel groups results by source
 
 ## How it works
 
-Each item (but iCloud Drive's, which are files already, indexed where they are) becomes an ordinary file in `~/Library/Application Support/DigUp/Sources.noindex`, which the engine indexes
+Each item (but iCloud Drive's, which are files already, indexed where they are) becomes an ordinary file in `~/Library/Application Support/Fouineur/Sources.noindex`, which the engine indexes
 like a chosen folder (but never lists with your folders):
 
 - a mail, note, event or reminder becomes a short text file named after it (date, subject, sender), with its people,
@@ -33,7 +33,7 @@ like a chosen folder (but never lists with your folders):
   downloaded at that size, not in full; screenshots are named as such, so their text is read too;
 - a video (when turned on) is exported small (640×480).
 
-`~/Library/Application Support/DigUp/sources.sqlite` remembers what each file stands for, so a result shows the mail's
+`~/Library/Application Support/Fouineur/sources.sqlite` remembers what each file stands for, so a result shows the mail's
 subject ("Mail · INBOX · Jean Dupont") and **↩** opens it in its app rather than the copy. It also keeps each item's
 version, so a sync only reads what changed.
 
@@ -43,10 +43,10 @@ its copies, and their entries leave the index.
 
 ## Permissions
 
-- **Mail, Notes and iCloud Drive**: System Settings → Privacy & Security → **Full Disk Access** → add DigUp. Turning either on opens
-  that pane; come back to DigUp and it starts.
+- **Mail, Notes and iCloud Drive**: System Settings → Privacy & Security → **Full Disk Access** → add Fouineur. Turning either on opens
+  that pane; come back to Fouineur and it starts.
 - **Calendar, Reminders, Photos**: macOS asks the first time you turn them on.
-- **Opening a note or a photo** asks Notes or Photos to show it (AppleScript): macOS asks once whether DigUp may
+- **Opening a note or a photo** asks Notes or Photos to show it (AppleScript): macOS asks once whether Fouineur may
   control them.
 
 An ad-hoc build (no signing identity, see `build.sh`) is a new app to macOS after each rebuild: it asks again. Put a
@@ -54,8 +54,15 @@ signing identity in `.sign-id` to keep the permissions across builds.
 
 ## Updates
 
-Upstream DigUp updates itself with Sparkle. This fork has no update feed (an upstream update would replace it with a
-DigUp without sources): to update, pull and rebuild.
+Upstream DigUp updates itself with Sparkle. Fouineur has no update feed: to update, pull and rebuild.
+
+## Name and identity
+
+Fouineur is its own app (`com.meric5488.Fouineur`, `Fouineur.app`, `~/Library/Application Support/Fouineur`), so it
+runs beside an installed DigUp without sharing settings or an index. Its first launch takes DigUp's settings and
+folder along (`Migration`): the folder is cloned (APFS: no extra space) and the index's paths into it are rewritten,
+so nothing is indexed or downloaded again. macOS asks for its permissions again, as for any new app. The code keeps
+upstream's names (`DigUpKit`, `DigUpSources`, the `digup` helper), so upstream's changes still merge.
 
 ## Code
 

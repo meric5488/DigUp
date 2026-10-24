@@ -13,7 +13,7 @@ import Photos
 public final class SourceSyncer: @unchecked Sendable {
     public typealias StateHandler = @Sendable ([SourceKind: SourceState]) -> Void
 
-    private let queue = DispatchQueue(label: "com.abdurrahim.DigUp.sources", qos: .utility)
+    private let queue = DispatchQueue(label: "com.meric5488.Fouineur.sources", qos: .utility)
     private let catalog: SourceCatalog
     private let providers: [SourceKind: SourceProvider]
     private let onState: StateHandler

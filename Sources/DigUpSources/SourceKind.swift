@@ -1,3 +1,4 @@
+import DigUpKit
 import Foundation
 
 /// The Apple apps whose content DigUp can search besides your folders.
@@ -117,8 +118,7 @@ public struct SourceOptions: Sendable, Equatable {
 
 /// Where the sources' files and their catalog live.
 public enum SourcesLayout {
-    public static let supportDirectory = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Application Support/DigUp", isDirectory: true)
+    public static let supportDirectory = AppPaths.applicationSupport
 
     /// The folder the engine indexes as if you had chosen it. It's inside ~/Library, so a home folder you chose never
     /// walks into it (the crawl skips ~/Library), and Spotlight doesn't index its copies twice (`.noindex`).

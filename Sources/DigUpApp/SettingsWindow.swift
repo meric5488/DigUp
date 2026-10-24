@@ -225,7 +225,7 @@ private struct GeneralSettings: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Window shortcut")
-                        Text("Opens the DigUp window from any app.")
+                        Text("Opens the Fouineur window from any app.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
@@ -237,7 +237,7 @@ private struct GeneralSettings: View {
                     state.launchAtLogin = state.app.launchesAtLogin
                 })) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Open DigUp when you log in")
+                        Text("Open Fouineur when you log in")
                         Text(state.loginProblem ?? "So the shortcut always works.")
                             .font(.system(size: 11))
                             .foregroundStyle(state.loginProblem == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.red))
@@ -251,7 +251,7 @@ private struct GeneralSettings: View {
                 })) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Check for updates automatically")
-                        Text("Once a day DigUp asks GitHub for its newest version; nothing about your files is sent. "
+                        Text("Once a day Fouineur asks GitHub for its newest version; nothing about your files is sent. "
                              + "Updates install with one click.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
@@ -261,8 +261,8 @@ private struct GeneralSettings: View {
                 LabeledContent {
                     Button("Check Now") { state.app.updates.checkNow() }
                 } label: {
-                    Text(state.model.updateAvailable.map { "DigUp \($0) is available" }
-                         ?? "DigUp \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                    Text(state.model.updateAvailable.map { "Fouineur \($0) is available" }
+                         ?? "Fouineur \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
                 }
             }
         }
@@ -283,7 +283,7 @@ private struct FolderSettings: View {
             Section {
                 if let summaries = state.summaries {
                     if summaries.isEmpty {
-                        Text("No folders yet. Add the ones DigUp should search.")
+                        Text("No folders yet. Add the ones Fouineur should search.")
                             .foregroundStyle(.secondary)
                     }
                     ForEach(summaries) { summary in
@@ -344,7 +344,7 @@ private struct FolderSettings: View {
             } header: {
                 Text("Skip these file types")
             } footer: {
-                Text("DigUp only reads pictures, PDFs, documents (txt, md, typ, rtf, docx, odt, html), audio and video here; "
+                Text("Fouineur only reads pictures, PDFs, documents (txt, md, typ, rtf, docx, odt, html), audio and video here; "
                      + "code is read only in the code folders (the Code tab). Keys, certificates and password files are "
                      + "never read, nor are hidden folders like ~/.ssh.")
                     .font(.system(size: 11))
@@ -564,7 +564,7 @@ private struct FolderStatusRow: View {
     /// One line per reason: what the crawl never queued from this folder, then what was skipped once read.
     private var reasons: [String] {
         let crawl: [String: String] = [
-            "other type": "of types DigUp doesn't read",
+            "other type": "of types Fouineur doesn't read",
             "app or bundle": "inside apps or bundles",
             "Photos library": "in a Photos library (its photos aren't read yet)",
             "link or special file": "links or special files",
@@ -614,7 +614,7 @@ private struct StorageSettings: View {
                 if !state.model.download.isReady {
                     HStack(alignment: .firstTextBaseline) {
                         Text("If your network blocks Hugging Face, download the two files on another network and "
-                             + "click Use Files… to choose them. DigUp checks them before it uses them.")
+                             + "click Use Files… to choose them. Fouineur checks them before it uses them.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -638,14 +638,14 @@ private struct StorageSettings: View {
                 }
             }
             Section("Privacy") {
-                Text("DigUp reads the folders you choose and keeps what it learns in its index, on this Mac. "
+                Text("Fouineur reads the folders you choose and keeps what it learns in its index, on this Mac. "
                      + "It goes online only to download its model, once, and to check for updates (General), "
                      + "which sends nothing about your files.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Section {
-                Text("DigUp \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · "
+                Text("Fouineur \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "") · "
                      + "EmbeddingGemma 2 by Google (Apache 2.0), run by llama.cpp (MIT).")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

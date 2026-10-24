@@ -209,7 +209,7 @@ enum DebugHooks {
             $0.trimmingCharacters(in: .whitespaces)
         } ?? []
         if !keys.isEmpty {
-            panel.pasteboard = NSPasteboard(name: NSPasteboard.Name("com.abdurrahim.DigUp.debug"))
+            panel.pasteboard = NSPasteboard(name: NSPasteboard.Name("com.meric5488.Fouineur.debug"))
             panel.pasteboard.clearContents()
         }
         let typed = defaults.string(forKey: "debugType")?.split(separator: "|").map(String.init) ?? []

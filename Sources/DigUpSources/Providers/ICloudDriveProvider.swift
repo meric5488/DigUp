@@ -13,7 +13,7 @@ final class ICloudDriveProvider: SourceProvider {
             return "iCloud Drive is off on this Mac: System Settings → Apple Account → iCloud → iCloud Drive."
         }
         guard (try? fm.contentsOfDirectory(atPath: SourcesLayout.iCloudDrive.path)) != nil else {
-            return "Give DigUp Full Disk Access: System Settings → Privacy & Security → Full Disk Access."
+            return "Give Fouineur Full Disk Access: System Settings → Privacy & Security → Full Disk Access."
         }
         return nil
     }

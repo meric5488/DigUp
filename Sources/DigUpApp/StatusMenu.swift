@@ -46,7 +46,7 @@ enum StatusIcon {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "DigUp"
+        image.accessibilityDescription = "Fouineur"
         return image
     }
 
@@ -125,7 +125,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             shownPaused = paused
             shownUpdate = update
         }
-        button.toolTip = "DigUp — \(model.statusLine)"
+        button.toolTip = "Fouineur — \(model.statusLine)"
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
@@ -137,7 +137,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
         if let version = model.updateAvailable {
-            menu.addItem(ActionMenuItem("Update to DigUp \(version)…") { [weak self] in self?.onCheckForUpdates() })
+            menu.addItem(ActionMenuItem("Update to Fouineur \(version)…") { [weak self] in self?.onCheckForUpdates() })
             menu.addItem(.separator())
         }
 
@@ -150,7 +150,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
             search.keyEquivalentModifierMask = modifiers
         }
         menu.addItem(search)
-        let open = ActionMenuItem("Open DigUp") { [weak self] in self?.onOpenWindow() }
+        let open = ActionMenuItem("Open Fouineur") { [weak self] in self?.onOpenWindow() }
         if let hotkey = model.windowHotkey, let (key, modifiers) = hotkey.menuEquivalent {
             open.keyEquivalent = key
             open.keyEquivalentModifierMask = modifiers
@@ -174,7 +174,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         if model.updateAvailable == nil {
             menu.addItem(ActionMenuItem("Check for Updates…") { [weak self] in self?.onCheckForUpdates() })
         }
-        menu.addItem(ActionMenuItem("Quit DigUp", key: "q") { NSApp.terminate(nil) })
+        menu.addItem(ActionMenuItem("Quit Fouineur", key: "q") { NSApp.terminate(nil) })
     }
 
     /// The menu as text, for the -debugMenu launch argument (menus can't be clicked from a script).
