@@ -6,7 +6,9 @@
 #   SIGN_ID="<identity>" ./build.sh  this identity instead
 #   RELEASE=1 SIGN_ID="Developer ID Application: …" ./build.sh   plus the secure timestamp notarization needs
 #                                    (scripts/release.sh does that, then notarizes and makes the DMG)
-# There's no install step: run it from build.noindex (see scripts/dev-run.sh).
+#   INSTALL=1 ./build.sh             then puts it in /Applications (INSTALL_DIR to change it) in place of the one there,
+#                                    quitting that one first and opening the new one if it was running
+# Without INSTALL, run it from build.noindex (see scripts/dev-run.sh).
 # For testing in-app updates with a copy of its own (never the installed DigUp's settings or updates), these replace
 # Info.plist values: BUNDLE_ID, VERSION, BUILD_NUMBER, SPARKLE_FEED (the appcast URL), SPARKLE_KEY (the EdDSA public key).
 set -euo pipefail
@@ -83,3 +85,21 @@ fi
 codesign --force --sign "$IDENTITY" --options runtime $TIMESTAMP --entitlements "$ENTITLEMENTS" "$APP"
 echo "Signed $([[ "$IDENTITY" == - ]] && echo ad-hoc || echo "with \"$IDENTITY\"") (hardened runtime)"
 echo "Built $APP"
+
+if [[ -n "${INSTALL:-}" ]]; then
+  TARGET="${INSTALL_DIR:-/Applications}/$APP_NAME.app"
+  ID="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$PLIST")"
+  RUNNING=""
+  if pgrep -f "$TARGET/Contents/MacOS/$APP_NAME" > /dev/null; then
+    RUNNING=1
+    osascript -e "tell application id \"$ID\" to quit" > /dev/null || true
+    for _ in $(seq 1 30); do pgrep -f "$TARGET/Contents/MacOS/$APP_NAME" > /dev/null || break; sleep 0.5; done
+  fi
+  # Copied beside it first, then swapped: a failed copy leaves the installed one as it was.
+  rm -rf "$TARGET.new"
+  ditto "$APP" "$TARGET.new"
+  rm -rf "$TARGET"
+  mv "$TARGET.new" "$TARGET"
+  echo "Installed $TARGET"
+  if [[ -n "$RUNNING" ]]; then open "$TARGET"; fi
+fi
