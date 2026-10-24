@@ -344,9 +344,27 @@ struct SearchWindowView: View {
     @State private var fieldFocused = false
 
     var body: some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                // The header floats over the results as a bar: they scroll beneath it, under the scroll edge effect.
+                main
+                    .safeAreaBar(edge: .top, spacing: 0) { header }
+                    .scrollEdgeEffectStyle(.hard, for: .top)
+            } else {
+                VStack(spacing: 0) {
+                    header
+                    Divider()
+                    main
+                }
+            }
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .frame(minWidth: 820, minHeight: 520)
+    }
+
+    /// The results, the preview beside them, and the status bar.
+    private var main: some View {
         VStack(spacing: 0) {
-            header
-            Divider()
             HStack(spacing: 0) {
                 content
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -362,15 +380,20 @@ struct SearchWindowView: View {
                         .padding(16)
                     }
                     .frame(width: 324)
-                    .background(Color.primary.opacity(0.025))
+                    .background(Self.previewBackground)
                 }
             }
             Divider()
             statusBar
         }
-        .ignoresSafeArea(.container, edges: .top)
-        .frame(minWidth: 820, minHeight: 520)
     }
+
+    /// The preview's column: set apart by a tint of its own before macOS 26, the window's background after.
+    private static var previewBackground: Color {
+        if #available(macOS 26.0, *) { .clear } else { Color.primary.opacity(0.025) }
+    }
+
+    private static let fieldShape = Capsule()
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -392,31 +415,41 @@ struct SearchWindowView: View {
                         .help("Clear")
                     }
                 }
-                .padding(.horizontal, 12)
+                .padding(.horizontal, 14)
                 .frame(height: 38)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.06)))
+                .glass(in: Self.fieldShape)
                 // Where typing goes, as a Mac text field shows it: a ring in the accent color while it has the cursor.
-                .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .strokeBorder(Color.accentColor.opacity(fieldFocused ? 0.6 : 0), lineWidth: 2))
+                .overlay(Self.fieldShape.strokeBorder(Color.accentColor.opacity(fieldFocused ? 0.6 : 0), lineWidth: 2))
                 .animation(.easeOut(duration: 0.15), value: fieldFocused)
-                Button {
-                    search.showsPreview.toggle()
-                } label: {
-                    Image(systemName: "sidebar.right")
-                        .font(.system(size: 15))
-                        .foregroundStyle(search.showsPreview ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                // The window's two actions, one group (on one glass capsule from macOS 26).
+                HStack(spacing: 2) {
+                    Button {
+                        search.showsPreview.toggle()
+                    } label: {
+                        Image(systemName: "sidebar.right")
+                            .font(.system(size: 15))
+                            .foregroundStyle(search.showsPreview ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help(search.showsPreview ? "Hide Preview" : "Show Preview")
+                    .accessibilityLabel(search.showsPreview ? "Hide Preview" : "Show Preview")
+                    Button {
+                        app.showSettings()
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 15))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Settings (⌘,)")
+                    .accessibilityLabel("Settings")
                 }
-                .buttonStyle(.plain)
-                .help(search.showsPreview ? "Hide Preview" : "Show Preview")
-                Button {
-                    app.showSettings()
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 15))
-                        .foregroundStyle(.secondary)
-                }
-                .buttonStyle(.plain)
-                .help("Settings (⌘,)")
+                .padding(.horizontal, 2)
+                .glass(in: Capsule(), interactive: true, fallback: Color.clear)
             }
             .padding(.leading, 78)   // beside the window buttons
             .frame(height: 52)
@@ -514,16 +547,42 @@ private struct KindFilters: View {
     var showsCode = false
     var sources: [ResultGroupKind] = []
 
+    /// macOS 26 and later: each group (the kinds, the sources, code) shares one glass capsule, like a toolbar's
+    /// groups; before, each pill has its own fill and dividers part the groups.
+    private var grouped: Bool {
+        if #available(macOS 26.0, *) { true } else { false }
+    }
+
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                chips
+            HStack(spacing: grouped ? 10 : 6) {
+                group { kinds }
+                if !sources.isEmpty {
+                    if !grouped { Divider().frame(height: 16).padding(.horizontal, 4) }
+                    group { sourceChips }
+                }
+                if showsCode {
+                    if !grouped { Divider().frame(height: 16).padding(.horizontal, 4) }
+                    group { codeChip }
+                }
             }
+            .glassGroup(spacing: 10)
+            .padding(.vertical, 2)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
 
-    @ViewBuilder private var chips: some View {
+    @ViewBuilder private func group(@ViewBuilder _ chips: () -> some View) -> some View {
+        if grouped {
+            HStack(spacing: 2) { chips() }
+                .padding(3)
+                .glass(in: Capsule())
+        } else {
+            chips()
+        }
+    }
+
+    @ViewBuilder private var kinds: some View {
         chip(title: "All", symbol: nil, count: nil, selected: search.filter == nil && !search.isCode, shortcut: 1) {
             search.filter = nil
         }
@@ -533,21 +592,21 @@ private struct KindFilters: View {
                 search.filter = search.filter == kind ? nil : kind
             }
         }
-        if !sources.isEmpty {
-            Divider().frame(height: 16).padding(.horizontal, 4)
-            ForEach(sources, id: \.self) { kind in
-                chip(title: kind.title, symbol: kind.symbol, count: search.isCode ? nil : search.counts[kind],
-                     selected: search.filter == kind && !search.isCode) {
-                    search.filter = search.filter == kind ? nil : kind
-                }
+    }
+
+    private var sourceChips: some View {
+        ForEach(sources, id: \.self) { kind in
+            chip(title: kind.title, symbol: kind.symbol, count: search.isCode ? nil : search.counts[kind],
+                 selected: search.filter == kind && !search.isCode) {
+                search.filter = search.filter == kind ? nil : kind
             }
         }
-        if showsCode {
-            Divider().frame(height: 16).padding(.horizontal, 4)
-            chip(title: "Code", symbol: FileKind.code.symbol, count: search.isCode ? search.counts[.code] : nil,
-                 selected: search.isCode, shortcut: 7) {
-                search.filter = search.filter == .code ? nil : .code
-            }
+    }
+
+    private var codeChip: some View {
+        chip(title: "Code", symbol: FileKind.code.symbol, count: search.isCode ? search.counts[.code] : nil,
+             selected: search.isCode, shortcut: 7) {
+            search.filter = search.filter == .code ? nil : .code
         }
     }
 
@@ -565,8 +624,9 @@ private struct KindFilters: View {
             .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
+            // The selected one is tinted, as a segmented control's; the others sit on their group's glass.
             .background(Capsule().fill(selected ? AnyShapeStyle(Color.accentColor)
-                                                : AnyShapeStyle(Color.primary.opacity(0.06))))
+                                                : AnyShapeStyle(Color.primary.opacity(grouped ? 0 : 0.06))))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)

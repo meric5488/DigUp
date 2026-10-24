@@ -3,6 +3,12 @@ import DigUpKit
 import SwiftUI
 
 struct SearchPanelView: View {
+    /// How much of the window color covers the vibrancy before macOS 26. Liquid Glass's regular variant keeps text
+    /// legible by itself: nothing on top of it.
+    private static var veil: Double {
+        if #available(macOS 26.0, *) { 0 } else { 0.75 }
+    }
+
     @Bindable var controller: SearchPanelController
 
     var body: some View {
@@ -18,8 +24,8 @@ struct SearchPanelView: View {
         }
         .frame(width: SearchPanelController.width)
         .frame(maxHeight: .infinity, alignment: .top)
-        // Glass alone is too see-through over busy backgrounds.
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.75))
+        // Vibrancy alone is too see-through over busy backgrounds.
+        .background(Color(nsColor: .windowBackgroundColor).opacity(Self.veil))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
 

@@ -28,6 +28,35 @@ enum Brand {
     }
 }
 
+// MARK: Liquid Glass
+
+/// Liquid Glass (macOS 26 and later) is for the few controls that float above the content: the window's search
+/// field, its buttons and its filters, as one bar. The content (results, previews, examples, badges) keeps system
+/// fills, and the panel, a glass surface itself, gets no glass inside it.
+extension View {
+    /// Liquid Glass in this shape on macOS 26 and later (tinted, and reacting to the pointer when `interactive`);
+    /// before, `fallback` fills it.
+    @ViewBuilder
+    func glass<S: Shape>(in shape: S, tint: Color? = nil, interactive: Bool = false,
+                         fallback: some ShapeStyle = Color.primary.opacity(0.06)) -> some View {
+        if #available(macOS 26.0, *) {
+            self.glassEffect(Glass.regular.tint(tint).interactive(interactive), in: shape)
+        } else {
+            self.background(shape.fill(fallback))
+        }
+    }
+
+    /// Glass shapes side by side render together, and blend when closer than `spacing`, on macOS 26 and later.
+    @ViewBuilder
+    func glassGroup(spacing: CGFloat) -> some View {
+        if #available(macOS 26.0, *) {
+            GlassEffectContainer(spacing: spacing) { self }
+        } else {
+            self
+        }
+    }
+}
+
 /// ⇧ ⌘ Space as keycaps.
 struct Keycaps: View {
     let caps: [String]
