@@ -1,0 +1,6 @@
+bin/
+obj/
+publication/
+.vs/
+*.user
+compilation.log

@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Cœur sans dépendance NuGet : index, recherche, sélection, extraction, connecteurs HTTP. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Fouineur.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Fouineur.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>Fouineur.App</RootNamespace>
+    <AssemblyName>Fouineur</AssemblyName>
+    <ApplicationIcon>Assets\fouineur.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <!-- ThemeMode (thème Fluent de WPF) est encore marqué expérimental. -->
+    <NoWarn>$(NoWarn);WPF0001</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fouineur.Core\Fouineur.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Connexion Microsoft 365 : MSAL + gestionnaire de comptes Windows (WAM). -->
+    <PackageReference Include="Microsoft.Identity.Client" Version="4.72.1" />
+    <PackageReference Include="Microsoft.Identity.Client.Broker" Version="4.72.1" />
+    <PackageReference Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.72.1" />
+    <!-- Modèle EmbeddingGemma local (ONNX, accéléré par DirectML). -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.22.0" />
+    <PackageReference Include="Microsoft.ML.Tokenizers" Version="1.0.2" />
+    <!-- Texte des PDF. -->
+    <PackageReference Include="PdfPig" Version="0.1.14" />
+    <!-- SQLite natif avec FTS5 (e_sqlite3.dll), chargé par le cœur. Dernière version : la 2.1.11 embarque un SQLite vulnérable (GHSA-2m69-gcr7-jv3q). -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\fouineur.ico" />
+    <Resource Include="Assets\fouineur.png" />
+  </ItemGroup>
+</Project>
