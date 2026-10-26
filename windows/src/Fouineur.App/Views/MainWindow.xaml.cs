@@ -40,6 +40,12 @@ public partial class MainWindow : Window
             Host.Unload();
         };
         PreviewKeyDown += Window_PreviewKeyDown;
+
+        if (Infrastructure.Branding.Logo is { } logo)
+        {
+            CompanyLogo.Source = logo;
+            CompanyLogoBadge.Visibility = Visibility.Visible;
+        }
     }
 
     private void OnVmChanged(object? sender, PropertyChangedEventArgs e)

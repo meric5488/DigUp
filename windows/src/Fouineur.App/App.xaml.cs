@@ -30,20 +30,27 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, a) => Logger.Error("Erreur non gérée", a.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, a) => { Logger.Error("Tâche en erreur", a.Exception); a.SetObserved(); };
 
+        var splash = new SplashWindow();
+        splash.Show();
+        splash.Report("Ouverture de l'index…");
+
         try
         {
             Services = new AppServices();
         }
         catch (DllNotFoundException ex)
         {
+            splash.Hide();
             MessageBox.Show($"Le moteur SQLite est introuvable : {ex.Message}", "Fouineur", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1);
             return;
         }
 
+        splash.Report($"{Services.Store.Count():N0} éléments indexés — préparation de l'interface…");
         var vm = new MainViewModel(Services);
         var win = new MainWindow { DataContext = vm };
         MainWindow = win;
+        win.ContentRendered += (_, _) => splash.CloseWhenReady();
         win.Show();
 
         if (Services.Settings.Sources.Count == 0)

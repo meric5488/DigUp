@@ -383,9 +383,14 @@
                 </Button>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal">
-                <TextBlock Text="{Binding EmbedderStatus}" Style="{StaticResource Caption}" />
-                <TextBlock Text="  ·  " Style="{StaticResource Caption}" />
-                <TextBlock Text="{Binding IndexSummary}" Style="{StaticResource Caption}" />
+                <TextBlock Text="{Binding EmbedderStatus}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                <TextBlock Text="  ·  " Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding IndexSummary}" Style="{StaticResource Caption}" VerticalAlignment="Center" />
+                <!-- Logo de l'entreprise (chargé dans le code : facultatif) -->
+                <Border x:Name="CompanyLogoBadge" Margin="14,0,0,0" Padding="6,2" CornerRadius="4" Background="White"
+                        VerticalAlignment="Center" ToolTip="Ingecap" Visibility="Collapsed">
+                    <Image x:Name="CompanyLogo" Height="18" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality" />
+                </Border>
             </StackPanel>
         </Grid>
     </Grid>

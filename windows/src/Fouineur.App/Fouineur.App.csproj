@@ -37,5 +37,7 @@
   <ItemGroup>
     <Resource Include="Assets\fouineur.ico" />
     <Resource Include="Assets\fouineur.png" />
+    <!-- Logo de l'entreprise : facultatif, intégré s'il est présent. -->
+    <Resource Include="Assets\logo-ingecap.png" Condition="Exists('Assets\logo-ingecap.png')" />
   </ItemGroup>
 </Project>
