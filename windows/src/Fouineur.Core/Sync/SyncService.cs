@@ -32,6 +32,7 @@ public sealed class SyncService : IDisposable
     private readonly SemaphoreSlim _running = new(1, 1);
     private CancellationTokenSource? _cts;
     private Timer? _timer;
+    private bool _startupDone;
 
     public IEmbedder Embedder { get; set; } = NoEmbedder.Instance;
     public event Action<SyncStatus>? StatusChanged;
@@ -75,8 +76,13 @@ public sealed class SyncService : IDisposable
     public void StartTimer()
     {
         _timer?.Dispose();
-        var period = TimeSpan.FromMinutes(Math.Max(5, _settings.SyncIntervalMinutes));
-        _timer = new Timer(_ => _ = SyncAllAsync(), null, _settings.SyncOnStartup ? TimeSpan.FromSeconds(5) : period, period);
+        _timer = null;
+        bool periodic = _settings.SyncIntervalMinutes > 0;
+        var period = periodic ? TimeSpan.FromMinutes(Math.Max(5, _settings.SyncIntervalMinutes)) : Timeout.InfiniteTimeSpan;
+        var first = _settings.SyncAtStartup && !_startupDone ? TimeSpan.FromSeconds(5) : period;
+        _startupDone = true;
+        if (first == Timeout.InfiniteTimeSpan) return; // tout à la demande
+        _timer = new Timer(_ => _ = SyncAllAsync(), null, first, period);
     }
 
     public void Cancel() => _cts?.Cancel();
@@ -189,15 +195,37 @@ public sealed class SearchService
         _store = store; _embedder = embedder; _minSim = minSimilarity ?? (() => 0.35f);
     }
 
+    private readonly Dictionary<string, float[]> _queryCache = new(StringComparer.OrdinalIgnoreCase);
+    private string _cacheModel = "";
+
+    /// <summary>Nombre minimal de caractères avant de calculer le sens de la requête (le texte seul suffit avant).</summary>
+    public int MinSemanticChars { get; set; } = 4;
+
     public async Task<SearchResponse> SearchAsync(SearchRequest req, CancellationToken ct)
     {
         float[]? vec = null;
         var parsed = QueryParser.Parse(req.Text);
         var emb = _embedder();
-        if (req.Semantic && emb.IsReady && parsed.SemanticText.Length >= 3)
+        if (req.Semantic && emb.IsReady && parsed.SemanticText.Length >= MinSemanticChars)
         {
-            try { vec = await emb.EmbedQueryAsync(parsed.SemanticText, ct); }
-            catch (Exception e) when (e is not OperationCanceledException) { vec = null; }
+            lock (_queryCache)
+            {
+                if (_cacheModel != emb.ModelId) { _queryCache.Clear(); _cacheModel = emb.ModelId; }
+                _queryCache.TryGetValue(parsed.SemanticText, out vec);
+            }
+            if (vec is null)
+            {
+                try
+                {
+                    vec = await emb.EmbedQueryAsync(parsed.SemanticText, ct);
+                    lock (_queryCache)
+                    {
+                        if (_queryCache.Count > 200) _queryCache.Clear();
+                        _queryCache[parsed.SemanticText] = vec;
+                    }
+                }
+                catch (Exception e) when (e is not OperationCanceledException) { vec = null; }
+            }
         }
         ct.ThrowIfCancellationRequested();
         return await Task.Run(() => _store.Search(req, vec, _minSim()), ct);

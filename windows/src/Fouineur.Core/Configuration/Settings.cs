@@ -55,8 +55,10 @@ public sealed class AppSettings
 {
     public List<SourceConfig> Sources { get; set; } = new();
     public EmbeddingSettings Embedding { get; set; } = new();
+    /// <summary>Synchronisation périodique, en minutes ; 0 = uniquement à la demande (bouton Synchroniser).</summary>
     public int SyncIntervalMinutes { get; set; } = 30;
-    public bool SyncOnStartup { get; set; } = true;
+    /// <summary>Synchroniser dès l'ouverture de l'application (désactivé par défaut).</summary>
+    public bool SyncAtStartup { get; set; }
     public bool OpenOfficeInDesktopApp { get; set; } = true;
     public string ViewMode { get; set; } = "Liste";
     public bool ShowPreview { get; set; } = true;

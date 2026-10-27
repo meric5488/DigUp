@@ -183,7 +183,9 @@ public sealed class MainViewModel : ObservableObject
     private SourceStatusViewModel? _sourceFilter;
     public SourceStatusViewModel? SourceFilter { get => _sourceFilter; set { if (Set(ref _sourceFilter, value)) _ = RunSearchAsync(); } }
 
-    public ObservableCollection<ResultViewModel> Results { get; } = new();
+    private ObservableCollection<ResultViewModel> _results = new();
+    /// <summary>Remplacée d'un bloc à chaque recherche (beaucoup plus rapide que vider puis ajouter un par un).</summary>
+    public ObservableCollection<ResultViewModel> Results { get => _results; private set => Set(ref _results, value); }
     private ResultViewModel? _selected;
     public ResultViewModel? SelectedResult
     {
@@ -211,15 +213,14 @@ public sealed class MainViewModel : ObservableObject
         {
             var req = new SearchRequest
             {
-                Text = Query, Kind = SelectedCategory.Kind, Date = Date, SourceId = SourceFilter?.Config.Id, Limit = 300,
+                Text = Query, Kind = SelectedCategory.Kind, Date = Date, SourceId = SourceFilter?.Config.Id, Limit = 200,
             };
             var resp = await _s.Search.SearchAsync(req, cts.Token);
             if (cts.IsCancellationRequested) return;
 
             var keepId = keepSelection ? SelectedResult?.Item.Id : null;
             var hits = SortByDate ? resp.Hits.OrderByDescending(h => h.Item.Date).ToList() : resp.Hits.ToList();
-            Results.Clear();
-            foreach (var h in hits) Results.Add(new ResultViewModel(h));
+            Results = new ObservableCollection<ResultViewModel>(hits.Select(h => new ResultViewModel(h)));
 
             int total = 0;
             foreach (var c in Categories)

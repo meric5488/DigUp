@@ -12,6 +12,8 @@ public sealed class ParsedQuery
     /// <summary>Texte « positif » (sans opérateurs) pour la recherche par le sens.</summary>
     public string SemanticText { get; init; } = "";
     public List<string> Extensions { get; init; } = new();
+    /// <summary>Mots positifs de la requête (pour surligner les extraits).</summary>
+    public List<string> Terms { get; init; } = new();
     public bool HasFieldFilters { get; init; }
     public bool IsEmpty => FtsQuery.Length == 0 && SemanticText.Length == 0;
 }
@@ -25,6 +27,7 @@ public static class QueryParser
         var negatives = new List<string>();
         var semantic = new List<string>();
         var exts = new List<string>();
+        var terms = new List<string>();
         bool fieldFilters = false;
 
         foreach (var (raw, quoted) in Tokenize(input))
@@ -67,6 +70,7 @@ public static class QueryParser
             if (neg) negatives.Add(expr);
             else
             {
+                terms.AddRange(words);
                 positives.Add(words.Count > 1 && !quoted ? "(" + expr + ")" : expr);
                 if (column is null) semantic.Add(string.Join(' ', words));
             }
@@ -84,6 +88,7 @@ public static class QueryParser
             FtsQuery = fts,
             SemanticText = string.Join(' ', semantic),
             Extensions = exts,
+            Terms = terms.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             HasFieldFilters = fieldFilters,
         };
     }

@@ -96,6 +96,12 @@ internal sealed unsafe class SqliteDb : IDisposable
     public int Changes => Native.sqlite3_changes(_db);
     public long LastInsertRowId => Native.sqlite3_last_insert_rowid(_db);
 
+    /// <summary>Remet à zéro toutes les requêtes en cache : libère l'instantané de lecture (sinon, en WAL, on ne voit plus les nouvelles écritures).</summary>
+    public void ResetAll()
+    {
+        foreach (var st in _cache.Values) st.Reset();
+    }
+
     internal string ErrMsg() => Marshal.PtrToStringUTF8(Native.sqlite3_errmsg(_db)) ?? "erreur inconnue";
 
     internal static byte[] Utf8Z(string s)

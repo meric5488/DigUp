@@ -6,14 +6,21 @@ namespace Fouineur.Core.Index;
 
 /// <summary>
 /// Index unique dans un fichier SQLite : éléments + texte intégral (FTS5) + vecteurs + états de synchronisation.
-/// Toutes les méthodes sont thread-safe (verrou unique : SQLite écrit de toute façon en série).
+/// Toutes les méthodes sont thread-safe. Les écritures passent par une connexion (et un verrou) dédiée ;
+/// la recherche utilise une connexion de lecture séparée : grâce au journal WAL, elle n'attend jamais la synchronisation.
 /// </summary>
 public sealed class IndexStore : IDisposable
 {
     private readonly SqliteDb _db;
     private readonly object _lock = new();
+    private readonly SqliteDb _rdb;          // lecture (recherche, aperçu, compteurs)
+    private readonly object _rlock = new();
     private long _vecVersion;
-    private VectorCache? _vecCache;
+    private volatile VectorCache? _vecCache;
+    private int _vecRefreshing;
+    private DateTime _vecLastRefresh = DateTime.MinValue;
+    /// <summary>Délai minimal entre deux rechargements des vecteurs pendant une vectorisation en cours.</summary>
+    public TimeSpan VectorRefreshInterval { get; set; } = TimeSpan.FromSeconds(20);
     public const int SchemaVersion = 2;
 
     public string Path { get; }
@@ -24,8 +31,16 @@ public sealed class IndexStore : IDisposable
         var dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
         if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
         _db = new SqliteDb(path);
-        _db.Exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=OFF; PRAGMA temp_store=MEMORY;");
+        _db.Exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=OFF; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-32768;");
         CreateSchema();
+        _rdb = OpenReader(path);
+    }
+
+    private static SqliteDb OpenReader(string path)
+    {
+        var db = new SqliteDb(path);
+        db.Exec("PRAGMA query_only=1; PRAGMA temp_store=MEMORY; PRAGMA cache_size=-65536; PRAGMA mmap_size=268435456;");
+        return db;
     }
 
     public static string SqliteVersion => SqliteDb.Version;
@@ -142,7 +157,7 @@ public sealed class IndexStore : IDisposable
             if (textChanged && old is not null)
             {
                 var rowid = _db.Scalar<long>("SELECT rowid FROM items WHERE id = ?", it.Id);
-                if (_db.Execute("DELETE FROM chunks WHERE item_rowid = ?", rowid) > 0) _vecVersion++;
+                if (_db.Execute("DELETE FROM chunks WHERE item_rowid = ?", rowid) > 0) Interlocked.Increment(ref _vecVersion);
             }
         }
     }
@@ -153,7 +168,7 @@ public sealed class IndexStore : IDisposable
         {
             var rowid = _db.Scalar<long?>("SELECT rowid FROM items WHERE id = ?", id);
             if (rowid is null) return false;
-            if (_db.Execute("DELETE FROM chunks WHERE item_rowid = ?", rowid.Value) > 0) _vecVersion++;
+            if (_db.Execute("DELETE FROM chunks WHERE item_rowid = ?", rowid.Value) > 0) Interlocked.Increment(ref _vecVersion);
             _db.Execute("DELETE FROM items WHERE rowid = ?", rowid.Value);
             return true;
         }
@@ -168,7 +183,7 @@ public sealed class IndexStore : IDisposable
             _db.Execute("DELETE FROM state WHERE source = ?", sourceId);
             _db.Execute("DELETE FROM tree WHERE source = ?", sourceId);
             _db.Execute("DELETE FROM messages WHERE source = ?", sourceId);
-            _vecVersion++;
+            Interlocked.Increment(ref _vecVersion);
             return n;
         }
     }
@@ -228,34 +243,34 @@ public sealed class IndexStore : IDisposable
         Body = withBody ? st.Text(14) : "",
     };
 
-    public IndexedItem? Get(string id, bool withBody = true)
+    /// <summary>Exécute une lecture sur la connexion de lecture, puis libère son instantané.</summary>
+    private T Read<T>(Func<T> f)
     {
-        lock (_lock)
+        lock (_rlock)
         {
-            var st = _db.Prepare($"SELECT {ItemColumns}, i.body FROM items i WHERE i.id = ?");
-            st.Bind(1, id);
-            return st.Step() ? ReadItem(st, withBody) : null;
+            try { return f(); }
+            finally { _rdb.ResetAll(); }
         }
     }
 
-    public int Count(string? sourceId = null)
+    public IndexedItem? Get(string id, bool withBody = true) => Read(() =>
     {
-        lock (_lock)
-            return sourceId is null
-                ? _db.Scalar<int>("SELECT count(*) FROM items")
-                : _db.Scalar<int>("SELECT count(*) FROM items WHERE source = ?", sourceId);
-    }
+        var st = _rdb.Prepare($"SELECT {ItemColumns}, i.body FROM items i WHERE i.id = ?");
+        st.Bind(1, id);
+        return st.Step() ? ReadItem(st, withBody) : null;
+    });
 
-    public Dictionary<ItemKind, int> CountByKind()
+    public int Count(string? sourceId = null) => Read(() => sourceId is null
+        ? _rdb.Scalar<int>("SELECT count(*) FROM items")
+        : _rdb.Scalar<int>("SELECT count(*) FROM items WHERE source = ?", sourceId));
+
+    public Dictionary<ItemKind, int> CountByKind() => Read(() =>
     {
-        lock (_lock)
-        {
-            var d = new Dictionary<ItemKind, int>();
-            var st = _db.Prepare("SELECT kind, count(*) FROM items GROUP BY kind");
-            while (st.Step()) d[(ItemKind)st.Int64(0)] = (int)st.Int64(1);
-            return d;
-        }
-    }
+        var d = new Dictionary<ItemKind, int>();
+        var st = _rdb.Prepare("SELECT kind, count(*) FROM items GROUP BY kind");
+        while (st.Step()) d[(ItemKind)st.Int64(0)] = (int)st.Int64(1);
+        return d;
+    });
 
     // ───────────────────────────── État des connecteurs ─────────────────────────────
 
@@ -387,7 +402,7 @@ public sealed class IndexStore : IDisposable
                     rowId, i, c.Start, c.Length, MemoryMarshal.AsBytes(c.Vector.AsSpan()).ToArray());
             }
             _db.Execute("UPDATE items SET embedded = 1 WHERE rowid = ?", rowId);
-            _vecVersion++;
+            Interlocked.Increment(ref _vecVersion);
         }
     }
 
@@ -397,7 +412,7 @@ public sealed class IndexStore : IDisposable
         lock (_lock)
         {
             _db.Exec("DELETE FROM chunks; UPDATE items SET embedded = 0;");
-            _vecVersion++; _vecCache = null;
+            Interlocked.Increment(ref _vecVersion); _vecCache = null;
         }
     }
 
@@ -415,26 +430,64 @@ public sealed class IndexStore : IDisposable
         public Dictionary<long, (ItemKind Kind, long Date, string Source)> Meta = new();
     }
 
-    private VectorCache LoadVectors()
+    /// <summary>
+    /// Vecteurs en mémoire. Premier appel : chargement immédiat. Ensuite, si l'index a changé (vectorisation en cours),
+    /// la recherche utilise la version en mémoire et un rechargement part en arrière-plan (au plus toutes les 20 s).
+    /// </summary>
+    private VectorCache? GetVectors()
     {
-        // appelé sous verrou
-        if (_vecCache is not null && _vecCache.Version == _vecVersion) return _vecCache;
-        var c = new VectorCache { Version = _vecVersion };
-        var data = new List<float>();
-        var rows = new List<long>(); var starts = new List<int>(); var lens = new List<int>();
-        var st = _db.Prepare("SELECT item_rowid, start, length, vec FROM chunks");
-        while (st.Step())
+        var c = _vecCache;
+        long version = Interlocked.Read(ref _vecVersion);
+        if (c is null)
+        {
+            c = BuildVectorCache(version);
+            _vecCache = c;
+            _vecLastRefresh = DateTime.UtcNow;
+            return c;
+        }
+        if (c.Version != version && DateTime.UtcNow - _vecLastRefresh >= VectorRefreshInterval
+            && Interlocked.CompareExchange(ref _vecRefreshing, 1, 0) == 0)
+        {
+            _vecLastRefresh = DateTime.UtcNow;
+            Task.Run(() =>
+            {
+                try { _vecCache = BuildVectorCache(Interlocked.Read(ref _vecVersion)); }
+                catch (Exception) { /* on garde l'ancienne version */ }
+                finally { Interlocked.Exchange(ref _vecRefreshing, 0); }
+            });
+        }
+        return c;
+    }
+
+    /// <summary>Recharge les vecteurs (connexion dédiée : ne bloque ni la recherche ni la synchronisation).</summary>
+    public void RefreshVectorsNow()
+    {
+        _vecCache = BuildVectorCache(Interlocked.Read(ref _vecVersion));
+        _vecLastRefresh = DateTime.UtcNow;
+    }
+
+    private VectorCache BuildVectorCache(long version)
+    {
+        using var db = OpenReader(Path);
+        var c = new VectorCache { Version = version };
+        int count = db.Scalar<int>("SELECT count(*) FROM chunks");
+        var st = db.Prepare("SELECT item_rowid, start, length, vec FROM chunks");
+        float[]? data = null;
+        var rows = new long[count]; var starts = new int[count]; var lens = new int[count];
+        int n = 0;
+        while (st.Step() && n < count)
         {
             var v = st.Floats(3);
-            if (c.Dim == 0) c.Dim = v.Length;
-            if (v.Length != c.Dim) continue;
-            rows.Add(st.Int64(0)); starts.Add((int)st.Int64(1)); lens.Add((int)st.Int64(2));
-            data.AddRange(v);
+            if (c.Dim == 0) { c.Dim = v.Length; data = new float[(long)count * c.Dim]; }
+            if (v.Length != c.Dim || data is null) continue;
+            v.CopyTo(data, (long)n * c.Dim);
+            rows[n] = st.Int64(0); starts[n] = (int)st.Int64(1); lens[n] = (int)st.Int64(2);
+            n++;
         }
-        c.Data = data.ToArray(); c.RowIds = rows.ToArray(); c.Starts = starts.ToArray(); c.Lengths = lens.ToArray();
-        var ms = _db.Prepare("SELECT rowid, kind, date, source FROM items WHERE embedded = 1");
+        c.Data = data is null ? Array.Empty<float>() : (n == count ? data : data[..(n * c.Dim)]);
+        c.RowIds = rows[..n]; c.Starts = starts[..n]; c.Lengths = lens[..n];
+        var ms = db.Prepare("SELECT rowid, kind, date, source FROM items WHERE embedded = 1");
         while (ms.Step()) c.Meta[ms.Int64(0)] = ((ItemKind)ms.Int64(1), ms.Int64(2), ms.Text(3));
-        _vecCache = c;
         return c;
     }
 
@@ -456,8 +509,9 @@ public sealed class IndexStore : IDisposable
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var parsed = QueryParser.Parse(req.Text);
         long floor = DateFloor(req.Date);
+        VectorCache? vc = req.Semantic && queryVector is { Length: > 0 } && !parsed.HasFieldFilters && !parsed.IsEmpty ? GetVectors() : null;
 
-        lock (_lock)
+        return Read(() =>
         {
             if (parsed.IsEmpty)
                 return Browse(req, parsed, floor, sw);
@@ -473,7 +527,7 @@ public sealed class IndexStore : IDisposable
                     WHERE items_fts MATCH ?1 AND i.date >= ?2 {(req.SourceId is null ? "" : "AND i.source = ?3")} {ExtFilterSql(parsed)}
                     ORDER BY bm25(items_fts, 8.0, 3.0, 1.5, 1.0) LIMIT 2000
                     """;
-                var st = _db.Prepare(sql);
+                var st = _rdb.Prepare(sql);
                 st.Bind(1, parsed.FtsQuery); st.Bind(2, floor);
                 if (req.SourceId is not null) st.Bind(3, req.SourceId);
                 int rank = 0;
@@ -487,12 +541,10 @@ public sealed class IndexStore : IDisposable
                 }
                 catch (SqliteException) { /* requête FTS invalide : on garde le sens seul */ }
             }
-
             // 2) Sens (vecteurs), uniquement sur des termes positifs.
             bool semanticUsed = false;
-            if (req.Semantic && queryVector is { Length: > 0 } && !parsed.HasFieldFilters)
+            if (vc is not null && queryVector is not null)
             {
-                var vc = LoadVectors();
                 if (vc.Dim == queryVector.Length && vc.RowIds.Length > 0)
                 {
                     semanticUsed = true;
@@ -520,7 +572,6 @@ public sealed class IndexStore : IDisposable
                     }
                 }
             }
-
             var counts = fused.Values.GroupBy(v => v.Kind).ToDictionary(g => g.Key, g => g.Count());
             var selected = fused
                 .Where(kv => req.Kind is null || kv.Value.Kind == req.Kind)
@@ -528,19 +579,25 @@ public sealed class IndexStore : IDisposable
                 .Take(req.Limit)
                 .ToList();
 
+            // Chargement groupé : une seule requête pour les éléments et le début de leur texte.
+            // Les extraits sont calculés ici : snippet() de FTS5 est très lent avec des recherches par préfixe.
+            var rowids = selected.Select(x => x.Key).ToList();
+            var items = LoadByRowIds(rowids, out var bodies);
+
             var hits = new List<SearchHit>(selected.Count);
             foreach (var (rowid, info) in selected)
             {
-                var item = LoadByRowId(rowid);
-                if (item is null) continue;
-                string snippet = info.Text && parsed.FtsQuery.Length > 0 ? FtsSnippet(rowid, parsed.FtsQuery) : "";
-                if (string.IsNullOrWhiteSpace(snippet) || !snippet.Contains(SearchHit.HighlightStart))
-                    snippet = info.Vec ? BodySlice(rowid, info.VecStart, info.VecLen) : (snippet.Length > 0 ? snippet : BodySlice(rowid, 0, 220));
+                if (!items.TryGetValue(rowid, out var item)) continue;
+                var body = bodies.GetValueOrDefault(rowid) ?? "";
+                string snippet = info.Text ? Snippets.Make(body, parsed.Terms) : "";
+                if (!snippet.Contains(SearchHit.HighlightStart))
+                    snippet = info.Vec ? Snippets.Window(body, info.VecStart, Math.Min(info.VecLen, 260), parsed.Terms)
+                                       : Snippets.Window(body, 0, 220, parsed.Terms);
                 hits.Add(new SearchHit { Item = item, Snippet = snippet, Score = info.Score, MatchedText = info.Text, MatchedMeaning = info.Vec });
             }
 
             return new SearchResponse { Hits = hits, CountsByKind = counts, Elapsed = sw.Elapsed, SemanticUsed = semanticUsed };
-        }
+        });
     }
 
     private static string ExtFilterSql(ParsedQuery p)
@@ -555,12 +612,12 @@ public sealed class IndexStore : IDisposable
     {
         string where = $"WHERE i.date >= ?1 {(req.SourceId is null ? "" : "AND i.source = ?2")} {ExtFilterSql(parsed)}";
         var counts = new Dictionary<ItemKind, int>();
-        var cs = _db.Prepare($"SELECT i.kind, count(*) FROM items i {where} GROUP BY i.kind");
+        var cs = _rdb.Prepare($"SELECT i.kind, count(*) FROM items i {where} GROUP BY i.kind");
         cs.Bind(1, floor); if (req.SourceId is not null) cs.Bind(2, req.SourceId);
         while (cs.Step()) counts[(ItemKind)cs.Int64(0)] = (int)cs.Int64(1);
 
         var sql = $"SELECT {ItemColumns}, substr(i.body, 1, 240) FROM items i {where} {(req.Kind is null ? "" : "AND i.kind = ?3")} ORDER BY i.date DESC LIMIT ?4";
-        var st = _db.Prepare(sql);
+        var st = _rdb.Prepare(sql);
         st.Bind(1, floor);
         if (req.SourceId is not null) st.Bind(2, req.SourceId);
         if (req.Kind is not null) st.Bind(3, (int)req.Kind.Value);
@@ -574,31 +631,23 @@ public sealed class IndexStore : IDisposable
         return new SearchResponse { Hits = hits, CountsByKind = counts, Elapsed = sw.Elapsed };
     }
 
-    private IndexedItem? LoadByRowId(long rowid)
-    {
-        var st = _db.Prepare($"SELECT {ItemColumns} FROM items i WHERE i.rowid = ?");
-        st.Bind(1, rowid);
-        return st.Step() ? ReadItem(st) : null;
-    }
+    /// <summary>Taille du texte lu pour fabriquer un extrait (le début du document suffit presque toujours).</summary>
+    private const int SnippetSource = 60_000;
 
-    private string FtsSnippet(long rowid, string fts)
+    private Dictionary<long, IndexedItem> LoadByRowIds(List<long> rowids, out Dictionary<long, string> bodies)
     {
-        var st = _db.Prepare("SELECT snippet(items_fts, 3, char(2), char(3), '…', 28), snippet(items_fts, 0, char(2), char(3), '…', 12) FROM items_fts WHERE items_fts MATCH ?1 AND rowid = ?2");
-        st.Bind(1, fts); st.Bind(2, rowid);
-        try
+        var d = new Dictionary<long, IndexedItem>(rowids.Count);
+        bodies = new Dictionary<long, string>(rowids.Count);
+        if (rowids.Count == 0) return d;
+        using var st = new SqliteStmt(_rdb,
+            $"SELECT {ItemColumns}, substr(i.body, 1, {SnippetSource}) FROM items i WHERE i.rowid IN ({string.Join(',', rowids)})", cached: false);
+        while (st.Step())
         {
-            if (!st.Step()) return "";
-            var body = st.Text(0);
-            if (body.Contains(SearchHit.HighlightStart)) return Clean(body);
-            return Clean(body.Length > 0 ? body : st.Text(1));
+            long id = st.Int64(0);
+            d[id] = ReadItem(st);
+            bodies[id] = st.Text(14);
         }
-        catch (SqliteException) { return ""; }
-    }
-
-    private string BodySlice(long rowid, int start, int len)
-    {
-        var s = _db.Scalar<string>("SELECT substr(body, ?2, ?3) FROM items WHERE rowid = ?1", rowid, start + 1, Math.Min(Math.Max(len, 1), 260)) ?? "";
-        return Clean(s) + (len > 260 ? "…" : "");
+        return d;
     }
 
     private static string Clean(string s)
@@ -636,6 +685,7 @@ public sealed class IndexStore : IDisposable
 
     public void Dispose()
     {
+        lock (_rlock) _rdb.Dispose();
         lock (_lock) _db.Dispose();
     }
 }

@@ -460,7 +460,9 @@ public sealed class SettingsViewModel : ObservableObject
     // ─── Général ───
 
     public AppSettings Settings => _s.Settings;
-    public int SyncIntervalMinutes { get => _s.Settings.SyncIntervalMinutes; set => _s.Settings.SyncIntervalMinutes = Math.Clamp(value, 5, 24 * 60); }
+    /// <summary>0 = synchronisation uniquement à la demande.</summary>
+    public int SyncIntervalMinutes { get => _s.Settings.SyncIntervalMinutes; set => _s.Settings.SyncIntervalMinutes = value <= 0 ? 0 : Math.Clamp(value, 5, 24 * 60); }
+    public bool SyncAtStartup { get => _s.Settings.SyncAtStartup; set => _s.Settings.SyncAtStartup = value; }
     public bool OpenOfficeInDesktopApp { get => _s.Settings.OpenOfficeInDesktopApp; set => _s.Settings.OpenOfficeInDesktopApp = value; }
     public string DefaultClientId { get => _s.Settings.DefaultM365ClientId; set => _s.Settings.DefaultM365ClientId = value.Trim(); }
 
