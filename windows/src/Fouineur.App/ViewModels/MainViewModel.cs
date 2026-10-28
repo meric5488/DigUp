@@ -9,6 +9,7 @@ using Fouineur.App.Infrastructure;
 using Fouineur.App.Services;
 using Fouineur.Core.Configuration;
 using Fouineur.Core.Index;
+using Fouineur.Core.Inventory;
 using Fouineur.Core.Model;
 using Fouineur.Core.Sync;
 
@@ -33,6 +34,7 @@ public sealed class SourceStatusViewModel : ObservableObject
     {
         SourceType.Microsoft365 => "",
         SourceType.Zimbra => "",
+        SourceType.Glpi => "\uE90F",
         _ => Config.Paths.Any(p => p.StartsWith(@"\\")) ? "" : "",
     };
     public string Detail => !Config.Enabled ? "désactivée"
@@ -50,14 +52,15 @@ public sealed class ResultViewModel : ObservableObject
     {
         Hit = hit;
         var (g, c, label) = KindVisuals.ForExtension(hit.Item.Extension);
-        TypeGlyph = hit.Item.Kind is ItemKind.Mail or ItemKind.Teams ? KindVisuals.Glyph(hit.Item.Kind) : g;
-        var b = new SolidColorBrush(hit.Item.Kind is ItemKind.Mail or ItemKind.Teams ? KindVisuals.Color(hit.Item.Kind) : c);
+        TypeGlyph = hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi ? KindVisuals.Glyph(hit.Item.Kind) : g;
+        var b = new SolidColorBrush(hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi ? KindVisuals.Color(hit.Item.Kind) : c);
         b.Freeze();
         TypeBrush = b;
         TypeLabel = hit.Item.Kind switch
         {
             ItemKind.Mail => "Message",
             ItemKind.Teams => hit.Item.Id.StartsWith("chatday:") ? "Conversation Teams" : "Fil de canal Teams",
+            ItemKind.Glpi => hit.Item.GetExtra("glpiType") ?? "GLPI",
             _ => label,
         };
     }
@@ -81,6 +84,10 @@ public sealed class ResultViewModel : ObservableObject
     public string TileMeta => $"{KindLabel} · {DateText}";
     public string Size => FileSizeConverter.Format(Item.Size);
 
+    /// <summary>Numéro de la source dans la réponse de Claude ([1], [2]…), sinon 0.</summary>
+    public int Number { get; init; }
+    public string NumberText => Number > 0 ? Number.ToString(CultureInfo.InvariantCulture) : "";
+
     private ImageSource? _thumb;
     public ImageSource? Thumbnail { get => _thumb; set { if (Set(ref _thumb, value)) OnPropertyChanged(nameof(HasThumbnail)); } }
     public bool HasThumbnail => _thumb is not null;
@@ -102,6 +109,9 @@ public sealed class MainViewModel : ObservableObject
             new[] { new CategoryViewModel { Kind = null, Label = "Tout", Glyph = "" } }
             .Concat(ItemKindNames.All.Select(k => new CategoryViewModel { Kind = k, Label = ItemKindNames.Label(k), Glyph = KindVisuals.Glyph(k), Accent = KindVisuals.Brush(k) })));
         _selectedCategory = Categories[0];
+        // L'inventaire n'existe que dans la catégorie GLPI : on y revient si l'application s'était fermée dans ce mode.
+        if (_s.Settings.Claude.Mode == "inventaire")
+            _selectedCategory = Categories.FirstOrDefault(c => c.Kind == ItemKind.Glpi) ?? Categories[0];
         DateFilters = new[]
         {
             new KeyValuePair<DateFilter, string>(DateFilter.Tout, "Toutes les dates"),
@@ -113,7 +123,11 @@ public sealed class MainViewModel : ObservableObject
         _showPreview = _s.Settings.ShowPreview;
 
         _debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(220) };
-        _debounce.Tick += (_, _) => { _debounce.Stop(); _ = RunSearchAsync(); };
+        _debounce.Tick += (_, _) =>
+        {
+            _debounce.Stop();
+            if (IsInventoryMode) _ = RunInventoryAsync(useClaude: false); else _ = RunSearchAsync();
+        };
 
         OpenCommand = new AsyncCommand(p => OpenAsync(p as ResultViewModel ?? SelectedResult, false), p => (p as ResultViewModel ?? SelectedResult) is not null);
         OpenContainerCommand = new AsyncCommand(p => OpenAsync(p as ResultViewModel ?? SelectedResult, true), p => (p as ResultViewModel ?? SelectedResult) is not null);
@@ -126,6 +140,16 @@ public sealed class MainViewModel : ObservableObject
         TileViewCommand = new RelayCommand(() => IsTileView = true);
         ClearCommand = new RelayCommand(() => Query = "");
         TogglePreviewCommand = new RelayCommand(() => ShowPreview = !ShowPreview);
+        IndexModeCommand = new RelayCommand(() => Mode = "index");
+        ClaudeModeCommand = new RelayCommand(() => Mode = "claude");
+        InventoryModeCommand = new RelayCommand(() => Mode = "inventaire");
+        RunInventoryCommand = new AsyncCommand(() => RunInventoryAsync(useClaude: true), () => !IsInventoryBusy);
+        ExportInventoryCommand = new RelayCommand(ExportInventory, () => InventoryRows.Count > 0);
+        CopyInventoryCommand = new RelayCommand(() => { try { Clipboard.SetText(InventoryService.ToTabs(InventoryRows)); InventorySummary += " · copié"; } catch (Exception) { } }, () => InventoryRows.Count > 0);
+        AskClaudeCommand = new AsyncCommand(AskClaudeAsync, () => HasQuery && !IsClaudeBusy);
+        CancelClaudeCommand = new RelayCommand(() => _claudeCts?.Cancel(), () => IsClaudeBusy);
+        CopyAnswerCommand = new RelayCommand(() => { try { Clipboard.SetText(ClaudeAnswer); } catch (Exception) { } }, () => ClaudeAnswer.Length > 0);
+        _mode = _s.Settings.Claude.Mode is "claude" or "inventaire" ? _s.Settings.Claude.Mode : "index";
         SourceFilterCommand = new RelayCommand(p =>
         {
             var s = p as SourceStatusViewModel;
@@ -143,10 +167,11 @@ public sealed class MainViewModel : ObservableObject
         {
             foreach (var s in Sources) s.Refresh();
             OnPropertyChanged(nameof(IndexSummary));
-            if (!_userBusy) _ = RunSearchAsync(keepSelection: true);
+            if (!_userBusy && IsIndexMode) _ = RunSearchAsync(keepSelection: true);
         });
         RefreshSources();
-        _ = RunSearchAsync();
+        _ = RunSearchAsync(force: true);
+        if (IsInventoryMode) _ = RunInventoryAsync(useClaude: false);
     }
 
     // ─── Recherche ───
@@ -159,6 +184,8 @@ public sealed class MainViewModel : ObservableObject
         {
             if (!Set(ref _query, value ?? "")) return;
             OnPropertyChanged(nameof(HasQuery));
+            if (IsClaudeMode) return; // Claude : on attend Entrée
+            if (IsInventoryMode && !InventoryQuery.HasSyntax(_query) && _query.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 2) return; // phrase : Entrée
             _debounce.Stop(); _debounce.Start();
         }
     }
@@ -169,8 +196,18 @@ public sealed class MainViewModel : ObservableObject
     public CategoryViewModel SelectedCategory
     {
         get => _selectedCategory;
-        set { if (value is not null && Set(ref _selectedCategory, value)) _ = RunSearchAsync(); }
+        set
+        {
+            if (value is null || !Set(ref _selectedCategory, value)) return;
+            OnPropertyChanged(nameof(IsGlpiCategory));
+            // Quitter la catégorie GLPI ramène à la recherche dans l'index.
+            if (IsInventoryMode && !IsGlpiCategory) Mode = "index";
+            else _ = RunSearchAsync();
+        }
     }
+
+    /// <summary>Le bouton « Inventaire » n'apparaît que dans la catégorie GLPI.</summary>
+    public bool IsGlpiCategory => _selectedCategory.Kind == ItemKind.Glpi;
 
     public KeyValuePair<DateFilter, string>[] DateFilters { get; }
     private DateFilter _date = DateFilter.Tout;
@@ -204,8 +241,11 @@ public sealed class MainViewModel : ObservableObject
 
     private bool _userBusy;
 
-    public async Task RunSearchAsync(bool keepSelection = false)
+    public async Task RunSearchAsync(bool keepSelection = false, bool force = false)
     {
+        // En mode Claude, la liste montre les sources de la réponse : pas de recherche automatique.
+        if (IsClaudeMode && !force && (HasClaudePanel || HasQuery)) return;
+        if (IsInventoryMode && !force) return;
         _searchCts?.Cancel();
         var cts = _searchCts = new CancellationTokenSource();
         IsSearching = true;
@@ -243,6 +283,207 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsEmpty));
             OnPropertyChanged(nameof(EmptyText));
         }
+    }
+
+    // ─── Recherche par Claude ───
+
+    private string _mode = "index";
+    /// <summary>« index » : texte et sens à chaque frappe ; « claude » : question à Claude (Entrée) ; « inventaire » : tableau du parc GLPI.</summary>
+    public string Mode
+    {
+        get => _mode;
+        set
+        {
+            if (!Set(ref _mode, value)) return;
+            _s.Settings.Claude.Mode = value;
+            foreach (var n in new[] { nameof(IsClaudeMode), nameof(IsIndexMode), nameof(IsInventoryMode), nameof(IsNotInventoryMode), nameof(SearchPlaceholder), nameof(HasClaudePanel) })
+                OnPropertyChanged(n);
+            if (value != "claude") _claudeCts?.Cancel();
+            if (value == "index") _ = RunSearchAsync(force: true);
+            if (value == "inventaire") _ = RunInventoryAsync(useClaude: false);
+        }
+    }
+    public bool IsClaudeMode { get => _mode == "claude"; set => Mode = value ? "claude" : "index"; }
+    public bool IsIndexMode => _mode == "index";
+    public bool IsInventoryMode => _mode == "inventaire";
+    public bool IsNotInventoryMode => !IsInventoryMode;
+
+    public string SearchPlaceholder => _mode switch
+    {
+        "claude" => "Posez une question à Claude, puis appuyez sur Entrée…",
+        "inventaire" => "Inventaire : « firefox », « logiciel:office version<2019 os:\"windows 10\" », ou une question + Entrée…",
+        _ => "Rechercher dans les mails, Teams, SharePoint, OneDrive et fichiers…",
+    };
+
+    // ─── Inventaire (tableau du parc GLPI, calculé sur ce poste) ───
+
+    public ICommand InventoryModeCommand { get; }
+    public ICommand RunInventoryCommand { get; }
+    public ICommand ExportInventoryCommand { get; }
+    public ICommand CopyInventoryCommand { get; }
+
+    private ObservableCollection<InventoryRow> _inventoryRows = new();
+    public ObservableCollection<InventoryRow> InventoryRows { get => _inventoryRows; private set => Set(ref _inventoryRows, value); }
+    private string _inventorySummary = "";
+    public string InventorySummary { get => _inventorySummary; set => Set(ref _inventorySummary, value); }
+    private string _inventoryInterpretation = "";
+    public string InventoryInterpretation { get => _inventoryInterpretation; set => Set(ref _inventoryInterpretation, value); }
+    private bool _inventoryBusy;
+    public bool IsInventoryBusy { get => _inventoryBusy; set { if (Set(ref _inventoryBusy, value)) CommandManager.InvalidateRequerySuggested(); } }
+    private InventoryRow? _selectedInventoryRow;
+    public InventoryRow? SelectedInventoryRow
+    {
+        get => _selectedInventoryRow;
+        set
+        {
+            if (!Set(ref _selectedInventoryRow, value) || value is null) return;
+            // L'aperçu et « Ouvrir » réutilisent la fiche indexée.
+            if (_s.Store.Get(value.ItemId) is { } item) SelectedResult = new ResultViewModel(new SearchHit { Item = item });
+        }
+    }
+    private CancellationTokenSource? _inventoryCts;
+
+    /// <summary>
+    /// Syntaxe directe (ou un simple nom de logiciel) : calcul immédiat. Phrase en langage courant + Entrée :
+    /// Claude traduit la question en critères (seule la question lui est envoyée), puis calcul local.
+    /// </summary>
+    public async Task RunInventoryAsync(bool useClaude)
+    {
+        _inventoryCts?.Cancel();
+        var cts = _inventoryCts = new CancellationTokenSource();
+        var text = Query.Trim();
+        IsInventoryBusy = true;
+        try
+        {
+            InventoryFilter filter;
+            bool sentence = !InventoryQuery.HasSyntax(text) && text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 2;
+            if (useClaude && sentence && _s.Claude.HasKey)
+            {
+                InventoryInterpretation = "Claude interprète la question…";
+                filter = await _s.InventoryPlanner.PlanAsync(text, cts.Token);
+                if (cts.IsCancellationRequested) return;
+                InventoryInterpretation = "Interprété par Claude : " + filter.Describe();
+            }
+            else
+            {
+                if (sentence && !useClaude) return; // on attend Entrée pour une phrase
+                filter = InventoryQuery.Parse(text);
+                InventoryInterpretation = (sentence && !_s.Claude.HasKey ? "Sans clé Claude, la phrase est lue comme un nom de logiciel. " : "")
+                                          + "Critères : " + filter.Describe();
+            }
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            var result = await Task.Run(() => InventoryService.Run(_s.Store, filter), cts.Token);
+            if (cts.IsCancellationRequested) return;
+            InventoryRows = new ObservableCollection<InventoryRow>(result.Rows);
+            InventorySummary = result.ScannedCount == 0
+                ? "Aucune fiche d'inventaire indexée : ajoutez une source GLPI, cochez « Inventaire » puis synchronisez."
+                : $"{result.Rows.Count:N0} ligne{(result.Rows.Count > 1 ? "s" : "")} · {result.AssetCount:N0} poste{(result.AssetCount > 1 ? "s" : "")} sur {result.ScannedCount:N0} fiches · {sw.ElapsedMilliseconds} ms"
+                  + (filter.Software is not null && !result.HasSoftwareData ? " · aucune liste de logiciels indexée (resynchronisez GLPI)" : "");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception e)
+        {
+            Logger.Error("Inventaire", e);
+            InventoryInterpretation = "Erreur : " + e.Message;
+        }
+        finally { if (cts == _inventoryCts) IsInventoryBusy = false; }
+    }
+
+    private void ExportInventory()
+    {
+        var dlg = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Exporter l'inventaire", Filter = "Fichier CSV (Excel)|*.csv",
+            FileName = $"inventaire-{DateTime.Now:yyyy-MM-dd-HHmm}.csv",
+        };
+        if (dlg.ShowDialog() != true) return;
+        try
+        {
+            File.WriteAllText(dlg.FileName, InventoryService.ToCsv(InventoryRows), new System.Text.UTF8Encoding(true));
+            InventorySummary += " · exporté";
+            AppServices.Launch(dlg.FileName);
+        }
+        catch (Exception e) { MessageBox.Show("Export impossible : " + e.Message, "Fouineur", MessageBoxButton.OK, MessageBoxImage.Warning); }
+    }
+
+    private CancellationTokenSource? _claudeCts;
+    private string _claudeAnswer = "";
+    public string ClaudeAnswer { get => _claudeAnswer; set { if (Set(ref _claudeAnswer, value)) OnPropertyChanged(nameof(HasClaudePanel)); } }
+    private string _claudeStatus = "";
+    public string ClaudeStatus { get => _claudeStatus; set { if (Set(ref _claudeStatus, value)) OnPropertyChanged(nameof(HasClaudePanel)); } }
+    private string _claudePlan = "";
+    public string ClaudePlan { get => _claudePlan; set => Set(ref _claudePlan, value); }
+    private bool _claudeBusy;
+    public bool IsClaudeBusy
+    {
+        get => _claudeBusy;
+        set { if (Set(ref _claudeBusy, value)) { OnPropertyChanged(nameof(HasClaudePanel)); CommandManager.InvalidateRequerySuggested(); } }
+    }
+    public bool HasClaudePanel => IsClaudeMode && (IsClaudeBusy || ClaudeAnswer.Length > 0 || ClaudeStatus.Length > 0);
+
+    public ICommand IndexModeCommand { get; }
+    public ICommand ClaudeModeCommand { get; }
+    public ICommand AskClaudeCommand { get; }
+    public ICommand CancelClaudeCommand { get; }
+    public ICommand CopyAnswerCommand { get; }
+
+    private async Task AskClaudeAsync()
+    {
+        var question = Query.Trim();
+        if (question.Length == 0) return;
+        _claudeCts?.Cancel();
+        var cts = _claudeCts = new CancellationTokenSource();
+        var ct = cts.Token;
+        ClaudeAnswer = ""; ClaudePlan = "";
+        if (!_s.ClaudeSearch.IsConfigured)
+        {
+            ClaudeStatus = "Clé d'API Anthropic manquante : ajoutez-la dans Sources › Claude.";
+            return;
+        }
+        IsClaudeBusy = true;
+        _userBusy = true;
+        try
+        {
+            ClaudeStatus = "Claude analyse la question…";
+            var plan = await _s.ClaudeSearch.PlanAsync(question, ct);
+            ClaudePlan = "Recherche : " + plan.Describe();
+
+            ClaudeStatus = "Recherche dans l'index…";
+            var ctx = await _s.ClaudeSearch.RetrieveAsync(question, plan, SelectedCategory.Kind, ct);
+            Results = new ObservableCollection<ResultViewModel>(ctx.Sources.Select((h, i) => new ResultViewModel(h) { Number = i + 1 }));
+            foreach (var c in Categories)
+                c.Count = c.Kind is null ? ctx.Sources.Count : ctx.Sources.Count(h => h.Item.Kind == c.Kind);
+            ResultSummary = ctx.Sources.Count == 0 ? "Aucun document trouvé" : $"{ctx.Sources.Count} document(s) consulté(s) par Claude";
+            SelectedResult = Results.FirstOrDefault();
+            OnPropertyChanged(nameof(IsEmpty)); OnPropertyChanged(nameof(EmptyText));
+
+            ClaudeStatus = ctx.Sources.Count == 0 ? "" : "Claude rédige la réponse…";
+            var sb = new System.Text.StringBuilder();
+            await foreach (var piece in _s.ClaudeSearch.AnswerAsync(ctx, ct))
+            {
+                sb.Append(piece);
+                ClaudeAnswer = sb.ToString();
+            }
+            var sent = ctx.CharsSent >= 1000 ? $"{ctx.CharsSent / 1000.0:0.#} k caractères" : $"{ctx.CharsSent} caractères";
+            ClaudeStatus = ctx.Sources.Count == 0 ? "" :
+                $"{_s.Settings.Claude.AnswerModel} · {ctx.Sources.Count} extrait(s) envoyé(s) à Anthropic ({sent})"
+                + (ctx.Excluded > 0 ? $" · {ctx.Excluded} résultat(s) de sources non autorisées écarté(s)" : "");
+        }
+        catch (OperationCanceledException) { ClaudeStatus = "Interrompu."; }
+        catch (Core.Ai.ClaudeException e) { ClaudeStatus = "Erreur Claude : " + e.Message; Logger.Warn(e.Message); }
+        catch (System.Net.Http.HttpRequestException e) { ClaudeStatus = "Connexion à Anthropic impossible : " + e.Message; Logger.Warn(e.Message); }
+        finally
+        {
+            if (cts == _claudeCts) IsClaudeBusy = false;
+            _userBusy = false;
+        }
+    }
+
+    /// <summary>Sélectionne la source [n] citée dans la réponse.</summary>
+    public void SelectSource(int number)
+    {
+        var r = Results.FirstOrDefault(x => x.Number == number);
+        if (r is not null) SelectedResult = r;
     }
 
     // ─── Affichage ───
@@ -327,7 +568,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PreviewAttachments)); OnPropertyChanged(nameof(PreviewParticipants));
         OnPropertyChanged(nameof(QueryTerms));
 
-        if (item.Kind is ItemKind.Mail or ItemKind.Teams) { PreviewMode = PreviewMode.Message; return; }
+        if (item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi) { PreviewMode = PreviewMode.Message; return; }
 
         if (!Controls.PreviewHost.HasHandler(item.Extension))
         {

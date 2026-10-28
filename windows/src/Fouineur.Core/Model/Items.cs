@@ -11,6 +11,7 @@ public enum ItemKind
     SharePoint = 3,
     OneDrive = 4,
     Fichier = 5,
+    Glpi = 6,
 }
 
 public static class ItemKindNames
@@ -22,11 +23,12 @@ public static class ItemKindNames
         ItemKind.SharePoint => "SharePoint",
         ItemKind.OneDrive => "OneDrive",
         ItemKind.Fichier => "Fichiers",
+        ItemKind.Glpi => "GLPI",
         _ => k.ToString(),
     };
 
     public static readonly ItemKind[] All =
-        { ItemKind.Mail, ItemKind.Teams, ItemKind.SharePoint, ItemKind.OneDrive, ItemKind.Fichier };
+        { ItemKind.Mail, ItemKind.Teams, ItemKind.SharePoint, ItemKind.OneDrive, ItemKind.Fichier, ItemKind.Glpi };
 }
 
 /// <summary>

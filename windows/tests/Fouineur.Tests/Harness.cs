@@ -73,6 +73,8 @@ public static class Runner
 public sealed class FakeHttp : HttpMessageHandler
 {
     public readonly List<(string Method, string Url, string Body)> Calls = new();
+    /// <summary>Noms des en-têtes de la dernière requête reçue.</summary>
+    public HashSet<string> LastHeaders { get; private set; } = new();
     private readonly Func<string, string, string, (HttpStatusCode, string, string?)> _route;
 
     public FakeHttp(Func<string, string, string, (HttpStatusCode Status, string Body, string? ContentType)> route) => _route = route;
@@ -81,7 +83,11 @@ public sealed class FakeHttp : HttpMessageHandler
     {
         var body = request.Content is null ? "" : await request.Content.ReadAsStringAsync(ct);
         var url = Uri.UnescapeDataString(request.RequestUri!.ToString());
-        lock (Calls) Calls.Add((request.Method.Method, url, body));
+        lock (Calls)
+        {
+            Calls.Add((request.Method.Method, url, body));
+            LastHeaders = new HashSet<string>(request.Headers.Select(x => x.Key), StringComparer.OrdinalIgnoreCase);
+        }
         var (status, respBody, ctype) = _route(request.Method.Method, url, body);
         var resp = new HttpResponseMessage(status)
         {

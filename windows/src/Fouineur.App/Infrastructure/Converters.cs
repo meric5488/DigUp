@@ -42,6 +42,7 @@ public static class KindVisuals
         ItemKind.SharePoint => "",
         ItemKind.OneDrive => "",
         ItemKind.Fichier => "",
+        ItemKind.Glpi => "\uE90F",
         _ => "",
     };
 
@@ -52,6 +53,7 @@ public static class KindVisuals
         ItemKind.SharePoint => System.Windows.Media.Color.FromRgb(0x03, 0x83, 0x87),
         ItemKind.OneDrive => System.Windows.Media.Color.FromRgb(0x00, 0x78, 0xD4),
         ItemKind.Fichier => System.Windows.Media.Color.FromRgb(0xC1, 0x7A, 0x00),
+        ItemKind.Glpi => System.Windows.Media.Color.FromRgb(0xD9, 0x5F, 0x2B),
         _ => Colors.Gray,
     };
 
@@ -74,6 +76,7 @@ public static class KindVisuals
         ".mp3" or ".wav" or ".flac" or ".m4a" => ("", System.Windows.Media.Color.FromRgb(0x6B, 0x4C, 0xAA), "Audio"),
         ".zip" or ".7z" or ".rar" or ".tar" or ".gz" => ("", System.Windows.Media.Color.FromRgb(0x7A, 0x5C, 0x2E), "Archive"),
         ".eml" or ".msg" => ("", System.Windows.Media.Color.FromRgb(0x0F, 0x6C, 0xBD), "Message"),
+        ".glpi" => ("\uE90F", System.Windows.Media.Color.FromRgb(0xD9, 0x5F, 0x2B), "GLPI"),
         ".teams" => ("", System.Windows.Media.Color.FromRgb(0x5B, 0x5F, 0xC7), "Conversation Teams"),
         ".txt" or ".md" or ".log" => ("", System.Windows.Media.Color.FromRgb(0x60, 0x60, 0x60), "Texte"),
         ".html" or ".htm" or ".xml" or ".json" or ".cs" or ".py" or ".js" or ".ps1" or ".sql" => ("", System.Windows.Media.Color.FromRgb(0x2E, 0x6B, 0x8A), "Code / texte"),

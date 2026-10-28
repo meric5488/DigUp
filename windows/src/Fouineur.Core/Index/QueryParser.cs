@@ -30,9 +30,11 @@ public static class QueryParser
         var terms = new List<string>();
         bool fieldFilters = false;
 
+        bool orNext = false;
         foreach (var (raw, quoted) in Tokenize(input))
         {
             string tok = raw;
+            if (!quoted && (tok == "OR" || tok == "OU") && positives.Count > 0) { orNext = true; continue; }
             bool neg = false;
             if (!quoted && tok.StartsWith('-') && tok.Length > 1) { neg = true; tok = tok[1..]; }
 
@@ -71,7 +73,10 @@ public static class QueryParser
             else
             {
                 terms.AddRange(words);
-                positives.Add(words.Count > 1 && !quoted ? "(" + expr + ")" : expr);
+                var p = words.Count > 1 && !quoted ? "(" + expr + ")" : expr;
+                if (orNext) positives[^1] = $"({positives[^1]} OR {p})";
+                else positives.Add(p);
+                orNext = false;
                 if (column is null) semantic.Add(string.Join(' ', words));
             }
         }

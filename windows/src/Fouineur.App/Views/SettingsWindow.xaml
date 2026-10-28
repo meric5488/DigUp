@@ -45,6 +45,12 @@
                                     <TextBlock Text="Messagerie Zimbra" Margin="8,0,0,0" />
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding AddGlpiCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,0,0,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE90F;" Style="{StaticResource Icon}" FontSize="14" />
+                                    <TextBlock Text="GLPI (tickets, base de connaissances, inventaire)" Margin="8,0,0,0" />
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding AddLocalCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,0,0,4">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8B7;" Style="{StaticResource Icon}" FontSize="14" />
@@ -243,7 +249,7 @@
                                     <TextBlock Grid.Row="1" Text="Identifiant" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
                                     <TextBox Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding UserName, UpdateSourceTrigger=LostFocus}" Margin="0,8,0,0" ToolTip="Adresse de votre boîte personnelle" />
                                     <TextBlock Grid.Row="2" Text="Mot de passe" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
-                                    <PasswordBox x:Name="ZimbraPassword" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" LostFocus="ZimbraPassword_LostFocus" />
+                                    <PasswordBox GotFocus="SelectAllOnFocus" x:Name="ZimbraPassword" Grid.Row="2" Grid.Column="1" Margin="0,8,0,0" LostFocus="ZimbraPassword_LostFocus" />
                                     <Button Grid.Row="2" Grid.Column="2" Margin="8,8,0,0" Padding="12,6" Click="TestZimbra_Click"
                                             Background="{DynamicResource AccentFillColorDefaultBrush}" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}">
                                         <StackPanel Orientation="Horizontal">
@@ -291,6 +297,53 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </Expander>
+                                </Grid>
+                            </Border>
+                            <!-- GLPI -->
+                            <Border Style="{StaticResource Card}" Visibility="{Binding IsGlpi, Converter={StaticResource BoolToVis}}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Adresse de GLPI" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding ServerUrl, UpdateSourceTrigger=LostFocus}" ToolTip="Ex. : https://glpi.exemple.fr (le suffixe /apirest.php est facultatif)" />
+                                    <TextBlock Grid.Row="1" Text="Jeton d'API" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                                    <PasswordBox GotFocus="SelectAllOnFocus" x:Name="GlpiUserToken" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" LostFocus="GlpiTokens_LostFocus"
+                                                 ToolTip="Votre jeton personnel : Préférences › Clés d'accès distant › Jeton d'API" />
+                                    <Button Grid.Row="1" Grid.Column="2" Margin="8,8,0,0" Padding="12,6" Click="TestGlpi_Click"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE77B;" Style="{StaticResource Icon}" FontSize="14" />
+                                            <TextBlock Text="Se connecter" Margin="6,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Jeton enregistré (chiffré pour votre session Windows)." Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                               Visibility="{Binding HasGlpiToken, Converter={StaticResource BoolToVis}}" />
+                                    <TextBlock Grid.Row="3" Text="App-Token" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                                    <PasswordBox GotFocus="SelectAllOnFocus" x:Name="GlpiAppToken" Grid.Row="3" Grid.Column="1" Margin="0,8,0,0" LostFocus="GlpiTokens_LostFocus"
+                                                 ToolTip="Facultatif : jeton du client API (Configuration › Générale › API) s'il est exigé" />
+                                    <Button Grid.Row="3" Grid.Column="2" Margin="8,8,0,0" Padding="10,6" Content="Effacer" Click="ClearGlpiApp_Click"
+                                            Visibility="{Binding HasGlpiAppToken, Converter={StaticResource BoolToVis}}" ToolTip="Supprimer l'App-Token enregistré" />
+                                    <TextBlock Grid.Row="4" Grid.Column="1" Text="App-Token enregistré." Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                               Visibility="{Binding HasGlpiAppToken, Converter={StaticResource BoolToVis}}" />
+                                    <TextBlock Grid.Row="5" Text="Historique" Style="{StaticResource FieldLabel}" Margin="0,10,12,0" />
+                                    <StackPanel Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,10,0,0">
+                                        <TextBox Text="{Binding GlpiHistoryDays, UpdateSourceTrigger=LostFocus}" Width="80" />
+                                        <TextBlock Text="jours de tickets, problèmes et changements (0 = tout)" VerticalAlignment="Center" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="6" Grid.ColumnSpan="3" Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}"
+                                               Text="Fouineur lit GLPI avec vos droits : seuls les tickets, articles et matériels que vous voyez dans GLPI sont indexés. Cochez ci-dessous ce qu'il faut synchroniser ; un clic sur un résultat ouvre la fiche dans GLPI." />
                                 </Grid>
                             </Border>
                             <TextBlock Text="{Binding Status}" Margin="2,8,0,0" TextWrapping="Wrap" Visibility="{Binding Status, Converter={StaticResource BoolToVis}}" />
@@ -452,6 +505,76 @@
                         </StackPanel>
                         <TextBlock Text="{Binding EmbedderStatus}" Margin="0,14,0,0" />
                         <Button Content="Recalculer le sens de tout l'index" Command="{Binding ResetVectorsCommand}" Margin="0,10,0,0" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═════════════════════ Claude ═════════════════════ -->
+            <TabItem Header="Claude">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,12,0,0" MaxWidth="820" HorizontalAlignment="Left">
+                        <TextBlock TextWrapping="Wrap" Text="En mode « Claude », Fouineur cherche d'abord dans l'index local, puis envoie à Claude (Anthropic) uniquement des extraits des documents les plus pertinents pour obtenir une réponse rédigée, avec ses sources." />
+                        <Border Style="{StaticResource Card}" Margin="0,12,0,0" Padding="12" BorderBrush="{DynamicResource SystemFillColorCautionBrush}">
+                            <TextBlock TextWrapping="Wrap" FontSize="12.5"
+                                       Text="Confidentialité : les extraits envoyés quittent ce poste. Décochez ci-dessous les sources qui ne doivent jamais être envoyées (données de santé, données clients…), et vérifiez la compatibilité avec vos engagements HDS / ISO 27001 et le RGPD." />
+                        </Border>
+
+                        <TextBlock Text="Clé d'API Anthropic" Style="{StaticResource SectionTitle}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <PasswordBox GotFocus="SelectAllOnFocus" x:Name="ClaudeKey" LostFocus="ClaudeKey_LostFocus" ToolTip="Clé créée sur console.anthropic.com (commence par sk-ant-)" />
+                            <Button Grid.Column="1" Margin="8,0,0,0" Padding="12,6" Click="TestClaude_Click"
+                                    Background="{DynamicResource AccentFillColorDefaultBrush}" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}"
+                                    Content="Enregistrer et tester" />
+                            <Button Grid.Column="2" Margin="8,0,0,0" Content="Supprimer la clé" Command="{Binding RemoveClaudeKeyCommand}" Click="RemoveClaudeKey_Click"
+                                    Visibility="{Binding HasClaudeKey, Converter={StaticResource BoolToVis}}" />
+                        </Grid>
+                        <TextBlock Text="✔ Clé enregistrée (chiffrée pour votre session Windows)." Margin="0,6,0,0" Foreground="{DynamicResource SystemFillColorSuccessBrush}"
+                                   Visibility="{Binding HasClaudeKey, Converter={StaticResource BoolToVis}}" />
+                        <TextBlock Text="{Binding ClaudeTestStatus}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding ClaudeTestStatus, Converter={StaticResource BoolToVis}}" />
+
+                        <TextBlock Text="Modèles" Style="{StaticResource SectionTitle}" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="260" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="Analyse de la question" Style="{StaticResource FieldLabel}" />
+                            <ComboBox Grid.Column="1" IsEditable="True" ItemsSource="{Binding ClaudeModels}" Text="{Binding ClaudeAnalysisModel, UpdateSourceTrigger=LostFocus}"
+                                      ToolTip="Rapide et peu coûteux : Haiku suffit" />
+                            <TextBlock Grid.Row="1" Text="Rédaction de la réponse" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                            <ComboBox Grid.Row="1" Grid.Column="1" IsEditable="True" ItemsSource="{Binding ClaudeModels}" Text="{Binding ClaudeAnswerModel, UpdateSourceTrigger=LostFocus}" Margin="0,8,0,0" />
+                            <TextBlock Grid.Row="2" Text="Documents envoyés (max.)" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding ClaudeMaxDocuments}" Width="80" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                            <TextBlock Grid.Row="3" Text="Taille d'un extrait (caractères)" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                            <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding ClaudePassageChars}" Width="80" HorizontalAlignment="Left" Margin="0,8,0,0" />
+                        </Grid>
+
+                        <TextBlock Text="Sources autorisées à être envoyées à Claude" Style="{StaticResource SectionTitle}" />
+                        <ItemsControl ItemsSource="{Binding Sources}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type vm:SourceEditorViewModel}">
+                                    <CheckBox IsChecked="{Binding AllowClaude}" Margin="0,3">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Glyph}" Style="{StaticResource Icon}" FontSize="13" />
+                                            <TextBlock Text="{Binding Name}" Margin="8,0,0,0" />
+                                            <TextBlock Text="{Binding TypeLabel}" Style="{StaticResource Caption}" Margin="8,0,0,0" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

@@ -260,6 +260,17 @@ public sealed class IndexStore : IDisposable
         return st.Step() ? ReadItem(st, withBody) : null;
     });
 
+    /// <summary>Tous les éléments dont l'identifiant commence par <paramref name="prefix"/> (parcours de la clé, sans le texte par défaut).</summary>
+    public List<IndexedItem> GetByIdPrefix(string prefix, bool withBody = false) => Read(() =>
+    {
+        var st = _rdb.Prepare($"SELECT {ItemColumns}, {(withBody ? "i.body" : "''")} FROM items i WHERE i.id >= ? AND i.id < ?");
+        st.Bind(1, prefix);
+        st.Bind(2, prefix + "\uffff");
+        var list = new List<IndexedItem>();
+        while (st.Step()) list.Add(ReadItem(st, withBody));
+        return list;
+    });
+
     public int Count(string? sourceId = null) => Read(() => sourceId is null
         ? _rdb.Scalar<int>("SELECT count(*) FROM items")
         : _rdb.Scalar<int>("SELECT count(*) FROM items WHERE source = ?", sourceId));

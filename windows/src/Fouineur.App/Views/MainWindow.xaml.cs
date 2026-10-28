@@ -58,6 +58,8 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.PreviewFile):
             case nameof(MainViewModel.PreviewItem):
                 UpdatePreview(); break;
+            case nameof(MainViewModel.ClaudeAnswer):
+                RenderClaudeAnswer(); break;
         }
     }
 
@@ -192,7 +194,7 @@ public partial class MainWindow : Window
             {
                 if (i > 0) para.Inlines.Add(new LineBreak());
                 var line = lines[i];
-                if (item.Kind == ItemKind.Teams && teamsHeader.IsMatch(line))
+                if (item.Kind == ItemKind.Teams && teamsHeader.IsMatch(line) || item.Kind == ItemKind.Glpi && GlpiHeader.IsMatch(line))
                 {
                     var r = new Run(line) { FontWeight = FontWeights.SemiBold };
                     r.SetResourceReference(TextElement.ForegroundProperty, "AccentTextFillColorPrimaryBrush");
@@ -204,6 +206,8 @@ public partial class MainWindow : Window
         }
         return doc;
     }
+
+    private static readonly Regex GlpiHeader = new(@"^(Suivi|Tâche|Solution)( \(privé\))? — .* — \d{4}-\d{2}-\d{2}");
 
     private static readonly CompareInfo Compare = CultureInfo.GetCultureInfo("fr-FR").CompareInfo;
 
@@ -232,6 +236,42 @@ public partial class MainWindow : Window
         }
     }
 
+    // ─── Réponse de Claude : les citations [n] deviennent des liens vers les sources ───
+
+    private static readonly Regex Citation = new(@"\[(\d+(?:\s*[,;–-]\s*\d+)*)\]");
+
+    private void RenderClaudeAnswer()
+    {
+        var text = Vm.ClaudeAnswer;
+        var inlines = ClaudeAnswerText.Inlines;
+        inlines.Clear();
+        int pos = 0;
+        foreach (Match m in Citation.Matches(text))
+        {
+            if (m.Index > pos) inlines.Add(new Run(text[pos..m.Index]));
+            var numbers = Regex.Matches(m.Groups[1].Value, @"\d+").Select(x => int.Parse(x.Value, CultureInfo.InvariantCulture)).ToList();
+            inlines.Add(new Run("["));
+            for (int i = 0; i < numbers.Count; i++)
+            {
+                if (i > 0) inlines.Add(new Run(", "));
+                int n = numbers[i];
+                var link = new Hyperlink(new Run(n.ToString(CultureInfo.InvariantCulture)))
+                {
+                    ToolTip = Vm.Results.FirstOrDefault(r => r.Number == n)?.Title ?? $"Source {n}",
+                    TextDecorations = null,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(Color.FromRgb(0x92, 0x4E, 0xEB)),
+                    Cursor = Cursors.Hand,
+                };
+                link.Click += (_, _) => Vm.SelectSource(n);
+                inlines.Add(link);
+            }
+            inlines.Add(new Run("]"));
+            pos = m.Index + m.Length;
+        }
+        if (pos < text.Length) inlines.Add(new Run(text[pos..]));
+    }
+
     // ─── Clavier et souris ───
 
     private void SearchBox_PreviewKeyDown(object sender, KeyEventArgs e)
@@ -241,6 +281,18 @@ public partial class MainWindow : Window
             case Key.Down when Vm.Results.Count > 0:
                 ResultsList.SelectedIndex = Math.Max(0, ResultsList.SelectedIndex);
                 (ResultsList.ItemContainerGenerator.ContainerFromIndex(ResultsList.SelectedIndex) as ListViewItem)?.Focus();
+                e.Handled = true;
+                break;
+            case Key.Enter when Vm.IsClaudeMode:
+                Execute(Vm.AskClaudeCommand);
+                e.Handled = true;
+                break;
+            case Key.Enter when Vm.IsInventoryMode:
+                Execute(Vm.RunInventoryCommand);
+                e.Handled = true;
+                break;
+            case Key.Escape when Vm.IsClaudeBusy:
+                Execute(Vm.CancelClaudeCommand);
                 e.Handled = true;
                 break;
             case Key.Enter when Vm.SelectedResult is not null:
@@ -268,6 +320,20 @@ public partial class MainWindow : Window
     {
         if (e.OriginalSource is DependencyObject d && ItemsControl.ContainerFromElement(ResultsList, d) is ListViewItem)
             Execute(Vm.OpenCommand);
+    }
+
+    private void InventoryGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        // Double-clic sur une ligne (pas sur l'en-tête de colonne qui trie) : ouvre la fiche GLPI.
+        if (e.OriginalSource is DependencyObject d && FindParent<System.Windows.Controls.DataGridRow>(d) is not null)
+            Execute(Vm.OpenCommand);
+    }
+
+    private static T? FindParent<T>(DependencyObject? d) where T : DependencyObject
+    {
+        while (d is not null and not T)
+            d = d is Visual or System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d);
+        return d as T;
     }
 
     private void ResultsList_KeyDown(object sender, KeyEventArgs e)

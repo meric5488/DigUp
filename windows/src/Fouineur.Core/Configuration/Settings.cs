@@ -4,7 +4,7 @@ using Fouineur.Core.Selection;
 
 namespace Fouineur.Core.Configuration;
 
-public enum SourceType { LocalFiles, Microsoft365, Zimbra }
+public enum SourceType { LocalFiles, Microsoft365, Zimbra, Glpi }
 
 public sealed class SourceConfig
 {
@@ -34,6 +34,13 @@ public sealed class SourceConfig
     public int ChatHistoryDays { get; set; } = 365;
     public int ChannelHistoryDays { get; set; } = 730;
 
+    /// <summary>Autoriser l'envoi d'extraits de cette source à Claude (recherche assistée).</summary>
+    public bool AllowClaude { get; set; } = true;
+
+    // GLPI (ServerUrl = adresse de GLPI)
+    /// <summary>Tickets, problèmes et changements modifiés depuis N jours ; 0 = tout l'historique.</summary>
+    public int GlpiHistoryDays { get; set; }
+
     public DateTimeOffset? LastSync { get; set; }
     public string? LastError { get; set; }
 }
@@ -51,10 +58,25 @@ public sealed class EmbeddingSettings
     public float MinSimilarity { get; set; } = 0.35f;
 }
 
+public sealed class ClaudeSettings
+{
+    /// <summary>Modèle qui analyse la question (rapide, peu coûteux).</summary>
+    public string AnalysisModel { get; set; } = "claude-haiku-5-5";
+    /// <summary>Modèle qui rédige la réponse.</summary>
+    public string AnswerModel { get; set; } = "claude-sonnet-5-5";
+    /// <summary>Nombre maximal de documents dont un extrait est envoyé.</summary>
+    public int MaxDocuments { get; set; } = 12;
+    /// <summary>Taille d'un extrait envoyé, en caractères.</summary>
+    public int PassageChars { get; set; } = 1500;
+    /// <summary>Dernier mode de recherche choisi : « index » ou « claude ».</summary>
+    public string Mode { get; set; } = "index";
+}
+
 public sealed class AppSettings
 {
     public List<SourceConfig> Sources { get; set; } = new();
     public EmbeddingSettings Embedding { get; set; } = new();
+    public ClaudeSettings Claude { get; set; } = new();
     /// <summary>Synchronisation périodique, en minutes ; 0 = uniquement à la demande (bouton Synchroniser).</summary>
     public int SyncIntervalMinutes { get; set; } = 30;
     /// <summary>Synchroniser dès l'ouverture de l'application (désactivé par défaut).</summary>

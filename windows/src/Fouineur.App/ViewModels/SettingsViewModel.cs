@@ -9,6 +9,7 @@ using Fouineur.Core.Configuration;
 using Fouineur.Core.Connectors;
 using Fouineur.Core.Connectors.Local;
 using Fouineur.Core.Connectors.M365;
+using Fouineur.Core.Connectors.Glpi;
 using Fouineur.Core.Connectors.Zimbra;
 using Fouineur.Core.Selection;
 
@@ -48,6 +49,9 @@ public sealed class NodeViewModel : ObservableObject
         NodeIcon.SharedFolder => "",
         NodeIcon.Server => "",
         NodeIcon.Root => "",
+        NodeIcon.Ticket => "\uE90F",
+        NodeIcon.Knowledge => "\uE82D",
+        NodeIcon.Asset => "\uE7F8",
         _ => "",
     };
 
@@ -129,6 +133,7 @@ public sealed class SourceEditorViewModel : ObservableObject
         SignOutCommand = new AsyncCommand(SignOutAsync);
         SearchSitesCommand = new AsyncCommand(SearchSitesAsync, () => !string.IsNullOrWhiteSpace(SiteQuery));
         TestZimbraCommand = new AsyncCommand(TestZimbraAsync);
+        TestGlpiCommand = new AsyncCommand(TestGlpiAsync);
         AddAccountCommand = new RelayCommand(AddAccount, () => NewAccount.Contains('@'));
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as string));
         SyncNowCommand = new RelayCommand(() => { _ = _s.Sync.SyncAllAsync(Config.Id); Status = "Synchronisation lancée."; });
@@ -141,15 +146,19 @@ public sealed class SourceEditorViewModel : ObservableObject
     public bool IsLocal => Config.Type == SourceType.LocalFiles;
     public bool IsM365 => Config.Type == SourceType.Microsoft365;
     public bool IsZimbra => Config.Type == SourceType.Zimbra;
+    public bool IsGlpi => Config.Type == SourceType.Glpi;
     public string TypeLabel => Config.Type switch
     {
         SourceType.Microsoft365 => "Microsoft 365 — OneDrive, SharePoint, Teams",
         SourceType.Zimbra => "Messagerie Zimbra",
+        SourceType.Glpi => "GLPI — tickets, base de connaissances, inventaire",
         _ => "Dossiers locaux et partages réseau",
     };
-    public string Glyph => Config.Type switch { SourceType.Microsoft365 => "", SourceType.Zimbra => "", _ => "" };
+    public string Glyph => Config.Type switch { SourceType.Microsoft365 => "", SourceType.Zimbra => "", SourceType.Glpi => "\uE90F", _ => "" };
 
     public string Name { get => Config.Name; set { Config.Name = value; OnPropertyChanged(); } }
+    /// <summary>Autoriser l'envoi d'extraits de cette source à Claude.</summary>
+    public bool AllowClaude { get => Config.AllowClaude; set { Config.AllowClaude = value; OnPropertyChanged(); } }
     public bool Enabled { get => Config.Enabled; set { Config.Enabled = value; OnPropertyChanged(); } }
     public string LastSyncText => Config.LastSync is { } d ? "Dernière synchronisation : " + MainViewModel.Relative(d) : "Jamais synchronisée";
     public string? LastError => Config.LastError;
@@ -382,6 +391,57 @@ public sealed class SourceEditorViewModel : ObservableObject
         }
     }
 
+    // ─── GLPI ───
+
+    public ICommand TestGlpiCommand { get; }
+    public bool HasGlpiToken => IsGlpi && !string.IsNullOrEmpty(_s.Secrets.Get($"glpi:{Config.Id}:usertoken"));
+    public bool HasGlpiAppToken => IsGlpi && !string.IsNullOrEmpty(_s.Secrets.Get($"glpi:{Config.Id}:apptoken"));
+
+    /// <summary>Profondeur d'historique des tickets, problèmes et changements (0 = tout).</summary>
+    public int GlpiHistoryDays
+    {
+        get => Config.GlpiHistoryDays;
+        set { var v = Math.Max(0, value); if (Config.GlpiHistoryDays == v) return; Config.GlpiHistoryDays = v; OnPropertyChanged(); ConnectionEdited(); }
+    }
+
+    /// <summary>Appelé par la vue (PasswordBox) : jetons chiffrés DPAPI, jamais réaffichés. Chaîne vide = inchangé.</summary>
+    public void SetGlpiTokens(string? userToken, string? appToken)
+    {
+        bool changed = false;
+        if (!string.IsNullOrWhiteSpace(userToken)) { _s.Secrets.Set($"glpi:{Config.Id}:usertoken", userToken.Trim()); changed = true; }
+        if (!string.IsNullOrWhiteSpace(appToken)) { _s.Secrets.Set($"glpi:{Config.Id}:apptoken", appToken.Trim()); changed = true; }
+        if (!changed) return;
+        ConnectionEdited();
+        OnPropertyChanged(nameof(HasGlpiToken));
+        OnPropertyChanged(nameof(HasGlpiAppToken));
+    }
+
+    public void ClearGlpiAppToken()
+    {
+        _s.Secrets.Set($"glpi:{Config.Id}:apptoken", null);
+        ConnectionEdited();
+        OnPropertyChanged(nameof(HasGlpiAppToken));
+    }
+
+    private async Task TestGlpiAsync()
+    {
+        Status = "Connexion à GLPI…";
+        try
+        {
+            if (Connector is not GlpiConnector g) return;
+            if (string.IsNullOrWhiteSpace(Config.ServerUrl)) { Status = "Renseignez l'adresse de GLPI."; return; }
+            var result = await g.TestAsync(default);
+            if (Rules.Rules.Count == 0) { g.ApplyDefaultSelection(); OnRulesChanged(); }
+            Status = "Connexion réussie — " + result;
+            await LoadRootsAsync();
+        }
+        catch (Exception e)
+        {
+            Status = "Échec : " + e.Message;
+            Logger.Warn($"GLPI : {e}");
+        }
+    }
+
     public ICommand SyncNowCommand { get; }
 }
 
@@ -403,10 +463,13 @@ public sealed class SettingsViewModel : ObservableObject
             Type = SourceType.Microsoft365, Name = "Microsoft 365", ClientId = s.Settings.DefaultM365ClientId,
         }));
         AddZimbraCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.Zimbra, Name = "Zimbra" }));
+        AddGlpiCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.Glpi, Name = "GLPI" }));
         AddLocalCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.LocalFiles, Name = "Fichiers" }));
         RemoveSourceCommand = new RelayCommand(RemoveSelected, () => SelectedSource is not null);
         BrowseModelCommand = new RelayCommand(BrowseModel);
         OpenFolderCommand = new RelayCommand(p => { if (p is string dir) { Directory.CreateDirectory(dir); Process.Start(new ProcessStartInfo(dir) { UseShellExecute = true }); } });
+        TestClaudeCommand = new AsyncCommand(TestClaudeAsync);
+        RemoveClaudeKeyCommand = new RelayCommand(() => { _s.Secrets.Set(AppServices.ClaudeKeySecret, null); OnPropertyChanged(nameof(HasClaudeKey)); ClaudeTestStatus = "Clé supprimée."; });
         ResetVectorsCommand = new RelayCommand(() =>
         {
             if (MessageBox.Show("Recalculer la recherche par le sens pour tout l'index ? (le texte intégral n'est pas touché)", "Fouineur", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
@@ -423,13 +486,14 @@ public sealed class SettingsViewModel : ObservableObject
         set
         {
             if (!Set(ref _selected, value) || value is null) return;
-            if (value.Roots.Count == 0 && !value.IsTreeLoading && (value.IsLocal || value.IsM365 && value.IsSignedIn || value.IsZimbra && value.HasPassword))
+            if (value.Roots.Count == 0 && !value.IsTreeLoading && (value.IsLocal || value.IsM365 && value.IsSignedIn || value.IsZimbra && value.HasPassword || value.IsGlpi && value.HasGlpiToken))
                 _ = value.LoadRootsAsync();
         }
     }
 
     public ICommand AddM365Command { get; }
     public ICommand AddZimbraCommand { get; }
+    public ICommand AddGlpiCommand { get; }
     public ICommand AddLocalCommand { get; }
     public ICommand RemoveSourceCommand { get; }
     public ICommand BrowseModelCommand { get; }
@@ -453,8 +517,47 @@ public sealed class SettingsViewModel : ObservableObject
         _s.Sync.RemoveSource(vm.Config);
         _s.Secrets.Set($"zimbra:{vm.Config.Id}:password", null);
         _s.Secrets.Set($"zimbra:{vm.Config.Id}:token", null);
+        _s.Secrets.Set($"glpi:{vm.Config.Id}:usertoken", null);
+        _s.Secrets.Set($"glpi:{vm.Config.Id}:apptoken", null);
         Sources.Remove(vm);
         SelectedSource = Sources.FirstOrDefault();
+    }
+
+    // ─── Claude ───
+
+    public bool HasClaudeKey => !string.IsNullOrWhiteSpace(_s.Secrets.Get(AppServices.ClaudeKeySecret));
+
+    /// <summary>Appelé par la vue (PasswordBox) : la clé est chiffrée (DPAPI) et jamais réaffichée.</summary>
+    public void SetClaudeKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key)) return;
+        _s.Secrets.Set(AppServices.ClaudeKeySecret, key.Trim());
+        OnPropertyChanged(nameof(HasClaudeKey));
+    }
+
+    public string ClaudeAnalysisModel { get => _s.Settings.Claude.AnalysisModel; set => _s.Settings.Claude.AnalysisModel = string.IsNullOrWhiteSpace(value) ? "claude-haiku-5-5" : value.Trim(); }
+    public string ClaudeAnswerModel { get => _s.Settings.Claude.AnswerModel; set => _s.Settings.Claude.AnswerModel = string.IsNullOrWhiteSpace(value) ? "claude-sonnet-5-5" : value.Trim(); }
+    public string[] ClaudeModels { get; } = { "claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5" };
+    public int ClaudeMaxDocuments { get => _s.Settings.Claude.MaxDocuments; set => _s.Settings.Claude.MaxDocuments = Math.Clamp(value, 3, 30); }
+    public int ClaudePassageChars { get => _s.Settings.Claude.PassageChars; set => _s.Settings.Claude.PassageChars = Math.Clamp(value, 300, 6000); }
+
+    private string _claudeTestStatus = "";
+    public string ClaudeTestStatus { get => _claudeTestStatus; set => Set(ref _claudeTestStatus, value); }
+    public ICommand TestClaudeCommand { get; }
+    public ICommand RemoveClaudeKeyCommand { get; }
+
+    private async Task TestClaudeAsync()
+    {
+        ClaudeTestStatus = "Test en cours…";
+        try
+        {
+            var r = await _s.ClaudeSearch.TestAsync(default);
+            ClaudeTestStatus = $"Connexion réussie ({ClaudeAnswerModel}) : « {r.Trim()} »";
+        }
+        catch (Exception e) when (e is Fouineur.Core.Ai.ClaudeException or System.Net.Http.HttpRequestException)
+        {
+            ClaudeTestStatus = "Échec : " + e.Message;
+        }
     }
 
     // ─── Général ───

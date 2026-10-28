@@ -35,6 +35,17 @@ dotnet run --project src\Fouineur.App -c Release
 
 Si un modèle est installé, la recherche « par le sens » complète les mots exacts (résultats marqués *par le sens*).
 
+## Recherche par Claude
+
+À gauche du champ de recherche, choisissez **Index** (recherche instantanée dans l'index local, mots exacts et sens) ou **Claude** (question en langage naturel, validée par Entrée).
+
+En mode Claude :
+1. Claude Haiku traduit la question en mots-clés et filtres (catégorie, période, auteur) ;
+2. Fouineur cherche localement, en élargissant si besoin ;
+3. seuls des extraits des meilleurs documents (12 par défaut) sont envoyés à Claude Sonnet, qui répond en citant ses sources [1], [2]… Les numéros sont cliquables et la liste affiche les documents consultés.
+
+Réglages › **Claude** : clé d'API Anthropic (chiffrée DPAPI), modèles, nombre et taille des extraits, et **sources autorisées** (décochez celles qui ne doivent jamais quitter le poste).
+
 ## Microsoft 365 : inscription d'application
 
 L'application **Fouinneur** dans Entra ID doit être un client public :
@@ -54,6 +65,30 @@ Adresse du serveur (`https://mail.exemple.fr`), identifiant et mot de passe (chi
 Boîtes supplémentaires : ajouter l'adresse du compte délégué (droit sur la boîte entière). Les dossiers partagés montés dans votre boîte apparaissent dans l'arborescence.
 Sélection par défaut d'une boîte : tout sauf Corbeille et Courrier indésirable.
 « Ouvrir » télécharge le message (.eml) et l'ouvre dans la messagerie par défaut ; clic droit › Ouvrir dans le webmail utilise le gabarit réglable (`{base}`, `{id}`, `{account}`, `{folder}`).
+
+## GLPI
+
+Source « GLPI » : tickets, problèmes et changements (avec suivis, tâches et solutions), base de connaissances,
+et inventaire (ordinateurs, matériel réseau, imprimantes, téléphones, écrans, périphériques) avec système
+d'exploitation, adresses IP et MAC, et logiciels installés (nom + version). Lecture avec les droits de l'utilisateur.
+
+- Adresse : la racine de GLPI (ex. `https://glpi.exemple.fr`) ; `/apirest.php` ou `/api.php/v…` sont acceptés.
+- Jeton d'API personnel (Préférences › Clés d'accès distant › Régénérer) et App-Token si le client API l'exige
+  (Configuration › Générale › API). Tous deux chiffrés DPAPI.
+- API REST classique (`apirest.php`), présente en GLPI 10 et 11. Si le frontal rejette les en-têtes
+  (`Authorization`, `App-Token`, `Session-Token`), Fouineur passe automatiquement les jetons en paramètres.
+- Diagnostic : `powershell -ExecutionPolicy Bypass -File scripts\test-glpi.ps1 -Url https://glpi.exemple.fr`
+  essaie 8 variantes de connexion et n'affiche que les codes de réponse.
+
+### Inventaire
+
+Dans la catégorie GLPI, le mode **Inventaire** affiche un tableau complet (poste, logiciel, version, système, IP,
+utilisateur, lieu, type, n° de série), triable, copiable et exportable en CSV pour Excel.
+
+- Nom de logiciel seul : `firefox`
+- Syntaxe : `logiciel:office version<2019 os:"windows 10"`, `ip:10.12.`, `lieu:metz`, `utilisateur:sophie`, `sans:antivirus`
+- Phrase + Entrée : Claude traduit la question en critères (seule la question est envoyée), le tableau est calculé localement.
+- Versions comparées naturellement (9.20 < 19.00) ; une année (« Office < 2019 ») est comparée à l'année du nom du produit.
 
 ## Recherche par le sens (facultatif)
 

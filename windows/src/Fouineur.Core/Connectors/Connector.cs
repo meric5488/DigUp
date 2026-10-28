@@ -7,7 +7,7 @@ using Fouineur.Core.Selection;
 namespace Fouineur.Core.Connectors;
 
 /// <summary>Icône d'un nœud dans le sélecteur de sources.</summary>
-public enum NodeIcon { Root, Folder, Drive, Site, Team, Channel, Chat, Mailbox, MailFolder, SharedFolder, Server }
+public enum NodeIcon { Root, Folder, Drive, Site, Team, Channel, Chat, Mailbox, MailFolder, SharedFolder, Server, Ticket, Knowledge, Asset }
 
 /// <summary>Nœud du sélecteur (chargé à la demande).</summary>
 public sealed class SourceNode

@@ -2,8 +2,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using Fouineur.Core.Ai;
 using Fouineur.Core.Configuration;
 using Fouineur.Core.Connectors;
+using Fouineur.Core.Connectors.Glpi;
 using Fouineur.Core.Connectors.Local;
 using Fouineur.Core.Connectors.M365;
 using Fouineur.Core.Connectors.Zimbra;
@@ -26,6 +28,11 @@ public sealed class AppServices : IConnectorFactory, IDisposable
     public DpapiSecretStore Secrets { get; }
     public SyncService Sync { get; }
     public SearchService Search { get; }
+    public ClaudeClient Claude { get; }
+    public ClaudeSearchService ClaudeSearch { get; }
+    /// <summary>Requêtes d'inventaire : Claude n'interprète que la question, le tableau est calculé localement.</summary>
+    public Fouineur.Core.Inventory.ClaudeInventoryPlanner InventoryPlanner { get; }
+    public const string ClaudeKeySecret = "claude:apikey";
     public ShellThumbnails Thumbnails { get; } = new();
     public IEmbedder Embedder { get; private set; } = NoEmbedder.Instance;
     public string EmbedderStatus { get; private set; } = "Recherche par le sens désactivée";
@@ -47,6 +54,10 @@ public sealed class AppServices : IConnectorFactory, IDisposable
         Sync = new SyncService(Store, Settings, this, Extractors, Paths);
         Sync.Log += Logger.Info;
         Search = new SearchService(Store, () => Embedder, () => Settings.Embedding.MinSimilarity);
+        Claude = new ClaudeClient(() => Secrets.Get(ClaudeKeySecret));
+        InventoryPlanner = new Fouineur.Core.Inventory.ClaudeInventoryPlanner(Claude, () => Settings.Claude);
+        ClaudeSearch = new ClaudeSearchService(Claude, Search, Store, () => Settings.Claude,
+            sourceId => Settings.Sources.FirstOrDefault(x => x.Id == sourceId)?.AllowClaude ?? false);
         ReloadEmbedder();
     }
 
@@ -103,6 +114,11 @@ public sealed class AppServices : IConnectorFactory, IDisposable
                     var graph = new GraphClient(TokenProvider(cfg));
                     var c = new M365Connector(cfg, graph, () => Settings.OpenOfficeInDesktopApp);
                     c.SetCacheDir(Paths.Cache);
+                    return c;
+                }
+            case SourceType.Glpi:
+                {
+                    var c = new GlpiConnector(cfg, new GlpiClient(cfg.ServerUrl, Secrets, "glpi:" + cfg.Id));
                     return c;
                 }
             case SourceType.Zimbra:
@@ -180,6 +196,7 @@ public sealed class AppServices : IConnectorFactory, IDisposable
 
     public void Dispose()
     {
+        Claude.Dispose();
         Sync.Dispose();
         Thumbnails.Dispose();
         (Embedder as IDisposable)?.Dispose();

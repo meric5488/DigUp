@@ -27,6 +27,23 @@ public static class Snippets
         return Window(text, start, width, terms);
     }
 
+    /// <summary>Passage brut (sans surlignage) centré sur le premier mot trouvé ; début du texte sinon.</summary>
+    public static string Passage(string text, IReadOnlyList<string> terms, int width)
+    {
+        if (string.IsNullOrEmpty(text)) return "";
+        int first = -1;
+        foreach (var t in terms)
+        {
+            int i = FindWord(text, t, 0, out _);
+            if (i >= 0 && (first < 0 || i < first)) first = i;
+        }
+        int start = first < 0 ? 0 : Math.Max(0, first - width / 3);
+        if (start > 0) { while (start < text.Length && !char.IsWhiteSpace(text[start - 1])) start++; }
+        int end = Math.Min(text.Length, start + width);
+        var s = Collapse(text.AsSpan(start, end - start));
+        return (start > 0 ? "… " : "") + s + (end < text.Length ? " …" : "");
+    }
+
     public static string Window(string text, int start, int width, IReadOnlyList<string> terms)
     {
         if (string.IsNullOrEmpty(text) || start >= text.Length) return "";
