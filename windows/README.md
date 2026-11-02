@@ -90,6 +90,18 @@ utilisateur, lieu, type, n° de série), triable, copiable et exportable en CSV 
 - Phrase + Entrée : Claude traduit la question en critères (seule la question est envoyée), le tableau est calculé localement.
 - Versions comparées naturellement (9.20 < 19.00) ; une année (« Office < 2019 ») est comparée à l'année du nom du produit.
 
+## NetBox (lecture seule)
+
+Source « NetBox » : équipements, baies, sites, machines virtuelles, clusters, adresses IP, préfixes, VLAN, VRF,
+circuits, opérateurs et locataires, à cocher par objet. Uniquement des requêtes GET.
+
+- Adresse : la racine de NetBox (ex. `https://netbox.exemple.fr`) ; `/api` est accepté.
+- Jeton : Profil › Jetons d'API › Ajouter, **sans « Write enabled »**. Jeton v2 `nbt_…` (NetBox 4.5+, envoyé en
+  `Bearer`) ou v1 (envoyé en `Token`). Chiffré DPAPI.
+- Synchro incrémentale par `last_updated`, suppressions détectées par la liste brève des identifiants.
+- Chaque fiche reprend statut, rôle, modèle, site, baie, IP, champs personnalisés, étiquettes, description et commentaires ;
+  un clic ouvre l'objet dans NetBox.
+
 ## Recherche par le sens (facultatif)
 
 Réglages › Recherche par le sens :

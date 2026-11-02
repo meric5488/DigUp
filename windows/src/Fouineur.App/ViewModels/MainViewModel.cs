@@ -35,6 +35,7 @@ public sealed class SourceStatusViewModel : ObservableObject
         SourceType.Microsoft365 => "",
         SourceType.Zimbra => "",
         SourceType.Glpi => "\uE90F",
+        SourceType.NetBox => "\uE968",
         _ => Config.Paths.Any(p => p.StartsWith(@"\\")) ? "" : "",
     };
     public string Detail => !Config.Enabled ? "désactivée"
@@ -52,8 +53,8 @@ public sealed class ResultViewModel : ObservableObject
     {
         Hit = hit;
         var (g, c, label) = KindVisuals.ForExtension(hit.Item.Extension);
-        TypeGlyph = hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi ? KindVisuals.Glyph(hit.Item.Kind) : g;
-        var b = new SolidColorBrush(hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi ? KindVisuals.Color(hit.Item.Kind) : c);
+        TypeGlyph = hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi or ItemKind.NetBox ? KindVisuals.Glyph(hit.Item.Kind) : g;
+        var b = new SolidColorBrush(hit.Item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi or ItemKind.NetBox ? KindVisuals.Color(hit.Item.Kind) : c);
         b.Freeze();
         TypeBrush = b;
         TypeLabel = hit.Item.Kind switch
@@ -61,6 +62,7 @@ public sealed class ResultViewModel : ObservableObject
             ItemKind.Mail => "Message",
             ItemKind.Teams => hit.Item.Id.StartsWith("chatday:") ? "Conversation Teams" : "Fil de canal Teams",
             ItemKind.Glpi => hit.Item.GetExtra("glpiType") ?? "GLPI",
+            ItemKind.NetBox => hit.Item.GetExtra("netboxType") ?? "NetBox",
             _ => label,
         };
     }
@@ -568,7 +570,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PreviewAttachments)); OnPropertyChanged(nameof(PreviewParticipants));
         OnPropertyChanged(nameof(QueryTerms));
 
-        if (item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi) { PreviewMode = PreviewMode.Message; return; }
+        if (item.Kind is ItemKind.Mail or ItemKind.Teams or ItemKind.Glpi or ItemKind.NetBox) { PreviewMode = PreviewMode.Message; return; }
 
         if (!Controls.PreviewHost.HasHandler(item.Extension))
         {

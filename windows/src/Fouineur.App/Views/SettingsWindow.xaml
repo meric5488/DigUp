@@ -51,6 +51,12 @@
                                     <TextBlock Text="GLPI (tickets, base de connaissances, inventaire)" Margin="8,0,0,0" />
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding AddNetBoxCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,0,0,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="&#xE968;" Style="{StaticResource Icon}" FontSize="14" />
+                                    <TextBlock Text="NetBox (équipements, IP, VLAN, circuits)" Margin="8,0,0,0" />
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding AddLocalCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Padding="10,7" Margin="0,0,0,4">
                                 <StackPanel Orientation="Horizontal">
                                     <TextBlock Text="&#xE8B7;" Style="{StaticResource Icon}" FontSize="14" />
@@ -299,6 +305,62 @@
                                     </Expander>
                                 </Grid>
                             </Border>
+                            <!-- NetBox -->
+                            <Border Style="{StaticResource Card}" Visibility="{Binding IsNetBox, Converter={StaticResource BoolToVis}}">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Adresse de NetBox" Style="{StaticResource FieldLabel}" />
+                                    <TextBox Grid.Column="1" Grid.ColumnSpan="2" Text="{Binding ServerUrl, UpdateSourceTrigger=LostFocus}" ToolTip="Ex. : https://netbox.exemple.fr (le suffixe /api est facultatif)" />
+                                    <TextBlock Grid.Row="1" Text="Jeton d'API" Style="{StaticResource FieldLabel}" Margin="0,8,12,0" />
+                                    <PasswordBox GotFocus="SelectAllOnFocus" x:Name="NetBoxToken" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" LostFocus="NetBoxToken_LostFocus"
+                                                 ToolTip="Profil › Jetons d'API › Ajouter un jeton, SANS « Write enabled ». Jeton v2 (nbt_…) ou v1." />
+                                    <Button Grid.Row="1" Grid.Column="2" Margin="8,8,0,0" Padding="12,6" Click="TestNetBox_Click"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}" Foreground="{DynamicResource TextOnAccentFillColorPrimaryBrush}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="&#xE77B;" Style="{StaticResource Icon}" FontSize="14" />
+                                            <TextBlock Text="Se connecter" Margin="6,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Grid.Row="2" Grid.Column="1" Text="Jeton enregistré (chiffré pour votre session Windows)." Style="{StaticResource Caption}" Margin="0,4,0,0"
+                                               Visibility="{Binding HasNetBoxToken, Converter={StaticResource BoolToVis}}" />
+                                    <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Margin="0,8,0,0">
+                                        <Button Command="{Binding TrustCertificateCommand}" HorizontalAlignment="Left" Padding="12,6"
+                                                Visibility="{Binding HasPendingCertificate, Converter={StaticResource BoolToVis}}"
+                                                ToolTip="Accepter uniquement ce certificat (empreinte exacte), après vérification">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Text="&#xE72E;" Style="{StaticResource Icon}" FontSize="14" />
+                                                <TextBlock Text="Approuver ce certificat…" Margin="6,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+                                        <Expander Header="Certificat approuvé manuellement (avancé)" Margin="0,6,0,0">
+                                            <StackPanel Margin="0,6,0,0">
+                                                <TextBlock Style="{StaticResource Caption}" TextWrapping="Wrap"
+                                                           Text="Si le serveur présente un certificat auto-signé, expiré ou à un autre nom, collez ici son empreinte SHA-256 (affichée dans le message d'erreur, ou dans le navigateur : cadenas › certificat). Seul ce certificat exact sera accepté." />
+                                                <TextBox Text="{Binding TrustedCertificateInput, UpdateSourceTrigger=LostFocus}" Margin="0,6,0,0" FontFamily="Consolas"
+                                                         ToolTip="64 caractères hexadécimaux ; les « : » et espaces sont acceptés" />
+                                            </StackPanel>
+                                        </Expander>
+                                        <DockPanel Visibility="{Binding TrustedCertificateText, Converter={StaticResource BoolToVis}}" Margin="0,4,0,0">
+                                            <Button DockPanel.Dock="Right" Content="Retirer" Padding="8,3" Command="{Binding ForgetCertificateCommand}" Margin="8,0,0,0" />
+                                            <TextBlock Text="{Binding TrustedCertificateText}" Style="{StaticResource Caption}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="4" Grid.ColumnSpan="3" Margin="0,10,0,0" TextWrapping="Wrap" Style="{StaticResource Caption}"
+                                               Text="Lecture seule : Fouineur n'envoie que des requêtes de consultation. Créez de préférence un jeton sans « Write enabled ». Cochez ci-dessous les objets à indexer ; un clic sur un résultat ouvre la fiche dans NetBox." />
+                                </Grid>
+                            </Border>
+
                             <!-- GLPI -->
                             <Border Style="{StaticResource Card}" Visibility="{Binding IsGlpi, Converter={StaticResource BoolToVis}}">
                                 <Grid>

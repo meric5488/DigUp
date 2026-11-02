@@ -10,6 +10,7 @@ using Fouineur.Core.Connectors;
 using Fouineur.Core.Connectors.Local;
 using Fouineur.Core.Connectors.M365;
 using Fouineur.Core.Connectors.Glpi;
+using Fouineur.Core.Connectors.NetBox;
 using Fouineur.Core.Connectors.Zimbra;
 using Fouineur.Core.Selection;
 
@@ -52,6 +53,7 @@ public sealed class NodeViewModel : ObservableObject
         NodeIcon.Ticket => "\uE90F",
         NodeIcon.Knowledge => "\uE82D",
         NodeIcon.Asset => "\uE7F8",
+        NodeIcon.Network => "\uE968",
         _ => "",
     };
 
@@ -134,6 +136,9 @@ public sealed class SourceEditorViewModel : ObservableObject
         SearchSitesCommand = new AsyncCommand(SearchSitesAsync, () => !string.IsNullOrWhiteSpace(SiteQuery));
         TestZimbraCommand = new AsyncCommand(TestZimbraAsync);
         TestGlpiCommand = new AsyncCommand(TestGlpiAsync);
+        TestNetBoxCommand = new AsyncCommand(TestNetBoxAsync);
+        TrustCertificateCommand = new AsyncCommand(TrustCertificateAsync, () => PendingCertificate is not null);
+        ForgetCertificateCommand = new RelayCommand(() => { Config.TrustedCertificate = null; ConnectionEdited(); OnPropertyChanged(nameof(TrustedCertificateText)); OnPropertyChanged(nameof(TrustedCertificateInput)); }, () => Config.TrustedCertificate is not null);
         AddAccountCommand = new RelayCommand(AddAccount, () => NewAccount.Contains('@'));
         RemoveAccountCommand = new RelayCommand(p => RemoveAccount(p as string));
         SyncNowCommand = new RelayCommand(() => { _ = _s.Sync.SyncAllAsync(Config.Id); Status = "Synchronisation lancée."; });
@@ -147,14 +152,16 @@ public sealed class SourceEditorViewModel : ObservableObject
     public bool IsM365 => Config.Type == SourceType.Microsoft365;
     public bool IsZimbra => Config.Type == SourceType.Zimbra;
     public bool IsGlpi => Config.Type == SourceType.Glpi;
+    public bool IsNetBox => Config.Type == SourceType.NetBox;
     public string TypeLabel => Config.Type switch
     {
         SourceType.Microsoft365 => "Microsoft 365 — OneDrive, SharePoint, Teams",
         SourceType.Zimbra => "Messagerie Zimbra",
         SourceType.Glpi => "GLPI — tickets, base de connaissances, inventaire",
+        SourceType.NetBox => "NetBox — équipements, adressage IP, VLAN, circuits (lecture seule)",
         _ => "Dossiers locaux et partages réseau",
     };
-    public string Glyph => Config.Type switch { SourceType.Microsoft365 => "", SourceType.Zimbra => "", SourceType.Glpi => "\uE90F", _ => "" };
+    public string Glyph => Config.Type switch { SourceType.Microsoft365 => "", SourceType.Zimbra => "", SourceType.Glpi => "\uE90F", SourceType.NetBox => "\uE968", _ => "" };
 
     public string Name { get => Config.Name; set { Config.Name = value; OnPropertyChanged(); } }
     /// <summary>Autoriser l'envoi d'extraits de cette source à Claude.</summary>
@@ -442,6 +449,89 @@ public sealed class SourceEditorViewModel : ObservableObject
         }
     }
 
+    // ─── NetBox ───
+
+    public ICommand TestNetBoxCommand { get; }
+    public bool HasNetBoxToken => IsNetBox && !string.IsNullOrEmpty(_s.Secrets.Get($"netbox:{Config.Id}:token"));
+
+    /// <summary>Appelé par la vue (PasswordBox) : jeton chiffré DPAPI, jamais réaffiché.</summary>
+    public void SetNetBoxToken(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token)) return;
+        _s.Secrets.Set($"netbox:{Config.Id}:token", token.Trim());
+        ConnectionEdited();
+        OnPropertyChanged(nameof(HasNetBoxToken));
+    }
+
+    public ICommand TrustCertificateCommand { get; }
+    public ICommand ForgetCertificateCommand { get; }
+
+    private NetBoxClient.CertificateInfo? _pendingCertificate;
+    /// <summary>Certificat refusé lors du dernier test, que l'utilisateur peut approuver.</summary>
+    public NetBoxClient.CertificateInfo? PendingCertificate
+    {
+        get => _pendingCertificate;
+        private set { if (Set(ref _pendingCertificate, value)) { OnPropertyChanged(nameof(HasPendingCertificate)); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); } }
+    }
+    public bool HasPendingCertificate => PendingCertificate is not null;
+
+    /// <summary>Empreinte SHA-256 approuvée, saisissable à la main (copiée depuis le message d'erreur ou le navigateur).</summary>
+    public string TrustedCertificateInput
+    {
+        get => Config.TrustedCertificate ?? "";
+        set
+        {
+            var v = NetBoxClient.NormalizeThumbprint(value ?? "");
+            var next = v.Length == 64 ? v.ToUpperInvariant() : null;
+            if (next == Config.TrustedCertificate) return;
+            if (v.Length > 0 && next is null) { Status = "Empreinte SHA-256 invalide : 64 caractères hexadécimaux attendus."; return; }
+            Config.TrustedCertificate = next;
+            ConnectionEdited();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(TrustedCertificateText));
+        }
+    }
+    public string TrustedCertificateText => Config.TrustedCertificate is { Length: > 0 } t
+        ? $"Certificat approuvé (SHA-256 {t[..Math.Min(16, t.Length)]}…) : seul ce certificat est accepté en plus de ceux reconnus par Windows."
+        : "";
+
+    private async Task TrustCertificateAsync()
+    {
+        if (PendingCertificate is not { Sha256.Length: > 0 } c) return;
+        var answer = System.Windows.MessageBox.Show(
+            $"Approuver ce certificat pour {Config.ServerUrl} ?\n\nSujet : {c.Subject}\nÉmetteur : {c.Issuer}\nValable jusqu'au : {c.NotAfter:dd/MM/yyyy}\nProblème : {NetBoxClient.Explain(c.Errors, c.ChainStatus)}\n\nEmpreinte SHA-256 :\n{c.Sha256}\n\n"
+            + "Vérifiez l'empreinte avec l'administrateur de NetBox (ou dans le navigateur : cadenas › certificat). Seul ce certificat exact sera accepté.",
+            "Fouineur — certificat NetBox", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Warning);
+        if (answer != System.Windows.MessageBoxResult.Yes) return;
+        Config.TrustedCertificate = c.Sha256;
+        PendingCertificate = null;
+        ConnectionEdited();
+        OnPropertyChanged(nameof(TrustedCertificateText));
+        OnPropertyChanged(nameof(TrustedCertificateInput));
+        await TestNetBoxAsync();
+    }
+
+    private async Task TestNetBoxAsync()
+    {
+        Status = "Connexion à NetBox…";
+        PendingCertificate = null;
+        try
+        {
+            if (Connector is not NetBoxConnector n) return;
+            if (string.IsNullOrWhiteSpace(Config.ServerUrl)) { Status = "Renseignez l'adresse de NetBox."; return; }
+            var result = await n.TestAsync(default);
+            if (Rules.Rules.Count == 0) { n.ApplyDefaultSelection(); OnRulesChanged(); }
+            Status = "Connexion réussie — " + result;
+            await LoadRootsAsync();
+        }
+        catch (Exception e)
+        {
+            Status = "Échec : " + e.Message;
+            if (e is NetBoxException { Certificate: { Sha256.Length: > 0 } rejected }) PendingCertificate = rejected;
+            Logger.Warn($"NetBox : {e}");
+        }
+    }
+
     public ICommand SyncNowCommand { get; }
 }
 
@@ -463,6 +553,7 @@ public sealed class SettingsViewModel : ObservableObject
             Type = SourceType.Microsoft365, Name = "Microsoft 365", ClientId = s.Settings.DefaultM365ClientId,
         }));
         AddZimbraCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.Zimbra, Name = "Zimbra" }));
+        AddNetBoxCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.NetBox, Name = "NetBox" }));
         AddGlpiCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.Glpi, Name = "GLPI" }));
         AddLocalCommand = new RelayCommand(() => Add(new SourceConfig { Type = SourceType.LocalFiles, Name = "Fichiers" }));
         RemoveSourceCommand = new RelayCommand(RemoveSelected, () => SelectedSource is not null);
@@ -486,7 +577,7 @@ public sealed class SettingsViewModel : ObservableObject
         set
         {
             if (!Set(ref _selected, value) || value is null) return;
-            if (value.Roots.Count == 0 && !value.IsTreeLoading && (value.IsLocal || value.IsM365 && value.IsSignedIn || value.IsZimbra && value.HasPassword || value.IsGlpi && value.HasGlpiToken))
+            if (value.Roots.Count == 0 && !value.IsTreeLoading && (value.IsLocal || value.IsM365 && value.IsSignedIn || value.IsZimbra && value.HasPassword || value.IsGlpi && value.HasGlpiToken || value.IsNetBox && value.HasNetBoxToken))
                 _ = value.LoadRootsAsync();
         }
     }
@@ -494,6 +585,7 @@ public sealed class SettingsViewModel : ObservableObject
     public ICommand AddM365Command { get; }
     public ICommand AddZimbraCommand { get; }
     public ICommand AddGlpiCommand { get; }
+    public ICommand AddNetBoxCommand { get; }
     public ICommand AddLocalCommand { get; }
     public ICommand RemoveSourceCommand { get; }
     public ICommand BrowseModelCommand { get; }
@@ -519,6 +611,7 @@ public sealed class SettingsViewModel : ObservableObject
         _s.Secrets.Set($"zimbra:{vm.Config.Id}:token", null);
         _s.Secrets.Set($"glpi:{vm.Config.Id}:usertoken", null);
         _s.Secrets.Set($"glpi:{vm.Config.Id}:apptoken", null);
+        _s.Secrets.Set($"netbox:{vm.Config.Id}:token", null);
         Sources.Remove(vm);
         SelectedSource = Sources.FirstOrDefault();
     }

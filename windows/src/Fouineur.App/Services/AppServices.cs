@@ -6,6 +6,7 @@ using Fouineur.Core.Ai;
 using Fouineur.Core.Configuration;
 using Fouineur.Core.Connectors;
 using Fouineur.Core.Connectors.Glpi;
+using Fouineur.Core.Connectors.NetBox;
 using Fouineur.Core.Connectors.Local;
 using Fouineur.Core.Connectors.M365;
 using Fouineur.Core.Connectors.Zimbra;
@@ -116,6 +117,8 @@ public sealed class AppServices : IConnectorFactory, IDisposable
                     c.SetCacheDir(Paths.Cache);
                     return c;
                 }
+            case SourceType.NetBox:
+                return new NetBoxConnector(cfg, new NetBoxClient(cfg.ServerUrl, Secrets, "netbox:" + cfg.Id, pinnedCertificate: cfg.TrustedCertificate));
             case SourceType.Glpi:
                 {
                     var c = new GlpiConnector(cfg, new GlpiClient(cfg.ServerUrl, Secrets, "glpi:" + cfg.Id));

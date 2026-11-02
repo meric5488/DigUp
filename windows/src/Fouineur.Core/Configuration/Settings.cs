@@ -4,7 +4,7 @@ using Fouineur.Core.Selection;
 
 namespace Fouineur.Core.Configuration;
 
-public enum SourceType { LocalFiles, Microsoft365, Zimbra, Glpi }
+public enum SourceType { LocalFiles, Microsoft365, Zimbra, Glpi, NetBox }
 
 public sealed class SourceConfig
 {
@@ -40,6 +40,8 @@ public sealed class SourceConfig
     // GLPI (ServerUrl = adresse de GLPI)
     /// <summary>Tickets, problèmes et changements modifiés depuis N jours ; 0 = tout l'historique.</summary>
     public int GlpiHistoryDays { get; set; }
+    /// <summary>NetBox : empreinte SHA-256 d'un certificat approuvé explicitement (auto-signé / autorité interne).</summary>
+    public string? TrustedCertificate { get; set; }
 
     public DateTimeOffset? LastSync { get; set; }
     public string? LastError { get; set; }
@@ -65,9 +67,9 @@ public sealed class ClaudeSettings
     /// <summary>Modèle qui rédige la réponse.</summary>
     public string AnswerModel { get; set; } = "claude-sonnet-5-5";
     /// <summary>Nombre maximal de documents dont un extrait est envoyé.</summary>
-    public int MaxDocuments { get; set; } = 12;
+    public int MaxDocuments { get; set; } = 30;
     /// <summary>Taille d'un extrait envoyé, en caractères.</summary>
-    public int PassageChars { get; set; } = 1500;
+    public int PassageChars { get; set; } = 6000;
     /// <summary>Dernier mode de recherche choisi : « index » ou « claude ».</summary>
     public string Mode { get; set; } = "index";
 }

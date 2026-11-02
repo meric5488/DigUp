@@ -63,7 +63,7 @@ public sealed class ClaudeSearchService
 
     // ─── 1. Analyse de la question ───
 
-    private static readonly string[] Categories = { "tout", "mails", "teams", "sharepoint", "onedrive", "fichiers", "glpi" };
+    private static readonly string[] Categories = { "tout", "mails", "teams", "sharepoint", "onedrive", "fichiers", "glpi", "netbox" };
     private static readonly string[] Periods = { "tout", "7j", "30j", "1an" };
 
     public async Task<SearchPlan> PlanAsync(string question, CancellationToken ct)
@@ -74,7 +74,7 @@ public sealed class ClaudeSearchService
             ["model"] = _settings().AnalysisModel,
             ["max_tokens"] = 400,
             ["system"] = $"""
-                Tu prépares une recherche dans un index local de mails, conversations Teams, documents SharePoint/OneDrive, fichiers et GLPI (tickets, problèmes, changements, base de connaissances, inventaire du parc) d'une entreprise française.
+                Tu prépares une recherche dans un index local de mails, conversations Teams, documents SharePoint/OneDrive, fichiers, GLPI (tickets, problèmes, changements, base de connaissances, inventaire du parc) et NetBox (équipements, baies, adresses IP, préfixes, VLAN, machines virtuelles, circuits) d'une entreprise française.
                 Nous sommes le {today}. Traduis la question en mots-clés de recherche efficaces (les mots probables dans les documents, en français,
                 sans mots vides, avec au besoin un synonyme utile) et en filtres. N'invente pas de filtre que la question ne demande pas.
                 Utilise toujours l'outil « rechercher ».
@@ -114,7 +114,7 @@ public sealed class ClaudeSearchService
         ItemKind? kind = S("categorie") switch
         {
             "mails" => ItemKind.Mail, "teams" => ItemKind.Teams, "sharepoint" => ItemKind.SharePoint,
-            "onedrive" => ItemKind.OneDrive, "fichiers" => ItemKind.Fichier, "glpi" => ItemKind.Glpi, _ => null,
+            "onedrive" => ItemKind.OneDrive, "fichiers" => ItemKind.Fichier, "glpi" => ItemKind.Glpi, "netbox" => ItemKind.NetBox, _ => null,
         };
         var date = S("periode") switch
         {
@@ -144,9 +144,12 @@ public sealed class ClaudeSearchService
 
         var seen = new HashSet<string>();
         var terms = QueryParser.Words(plan.Keywords + " " + (plan.Author ?? ""));
+        // On n'élargit la recherche que si les essais précis ont trouvé peu de documents : avec un plafond élevé (30),
+        // compléter avec des correspondances lâches n'apporterait que du bruit.
+        int enough = Math.Min(settings.MaxDocuments, 8);
         foreach (var req in attempts)
         {
-            if (ctx.Sources.Count >= settings.MaxDocuments) break;
+            if (ctx.Sources.Count >= settings.MaxDocuments || ctx.Sources.Count >= enough) break;
             var resp = await _search.SearchAsync(req, ct);
             foreach (var hit in resp.Hits)
             {
@@ -187,9 +190,9 @@ public sealed class ClaudeSearchService
         return new JsonObject
         {
             ["model"] = model,
-            ["max_tokens"] = 1500,
+            ["max_tokens"] = 3000,
             ["system"] = $"""
-                Tu es l'assistant de recherche de Fouineur, un moteur de recherche interne (mails, Teams, SharePoint, OneDrive, fichiers, GLPI).
+                Tu es l'assistant de recherche de Fouineur, un moteur de recherche interne (mails, Teams, SharePoint, OneDrive, fichiers, GLPI, NetBox).
                 Nous sommes le {DateTime.Now.ToString("dddd d MMMM yyyy", fr)}.
                 Réponds en français, de façon concise et directe, uniquement à partir des documents fournis.
                 Après chaque information, cite le ou les documents sous la forme [1], [2]… (le numéro du document).

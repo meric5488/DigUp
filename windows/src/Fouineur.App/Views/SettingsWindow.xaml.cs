@@ -24,7 +24,7 @@ public partial class SettingsWindow : Window
             _vm = DataContext as SettingsViewModel;
             if (_vm is not null) _vm.PropertyChanged += Vm_PropertyChanged;
             RefreshSecretFields();
-            if (_vm is { SelectedSource: { } s } && s.Roots.Count == 0 && (s.IsLocal || s.IsM365 && s.IsSignedIn || s.IsZimbra && s.HasPassword || s.IsGlpi && s.HasGlpiToken))
+            if (_vm is { SelectedSource: { } s } && s.Roots.Count == 0 && (s.IsLocal || s.IsM365 && s.IsSignedIn || s.IsZimbra && s.HasPassword || s.IsGlpi && s.HasGlpiToken || s.IsNetBox && s.HasNetBoxToken))
                 _ = s.LoadRootsAsync();
         };
         Closed += (_, _) => { if (_vm is not null) _vm.PropertyChanged -= Vm_PropertyChanged; };
@@ -44,6 +44,7 @@ public partial class SettingsWindow : Window
         Show(ZimbraPassword, s is { IsZimbra: true, HasPassword: true });
         Show(GlpiUserToken, s is { IsGlpi: true, HasGlpiToken: true });
         Show(GlpiAppToken, s is { IsGlpi: true, HasGlpiAppToken: true });
+        Show(NetBoxToken, s is { IsNetBox: true, HasNetBoxToken: true });
         Show(ClaudeKey, (DataContext as SettingsViewModel)?.HasClaudeKey == true);
     }
 
@@ -108,6 +109,26 @@ public partial class SettingsWindow : Window
         if (s.TestGlpiCommand.CanExecute(null)) s.TestGlpiCommand.Execute(null);
     }
 
+    // ─── NetBox ───
+
+    private void PushNetBoxToken()
+    {
+        if (Typed(NetBoxToken) is not { } token) return;
+        Source?.SetNetBoxToken(token);
+        Show(NetBoxToken, true);
+    }
+
+    private void NetBoxToken_LostFocus(object sender, RoutedEventArgs e) => PushNetBoxToken();
+
+    private void TestNetBox_Click(object sender, RoutedEventArgs e)
+    {
+        var s = Source;
+        if (s is null) return;
+        PushNetBoxToken();
+        (Keyboard.FocusedElement as UIElement)?.MoveFocus(new TraversalRequest(FocusNavigationDirection.Next));
+        if (s.TestNetBoxCommand.CanExecute(null)) s.TestNetBoxCommand.Execute(null);
+    }
+
     // ─── Claude ───
 
     private void PushClaudeKey()
@@ -135,5 +156,6 @@ public partial class SettingsWindow : Window
         PushClaudeKey();
         PushZimbraPassword();
         PushGlpiTokens();
+        PushNetBoxToken();
     }
 }
