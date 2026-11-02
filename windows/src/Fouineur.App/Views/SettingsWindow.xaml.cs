@@ -27,6 +27,21 @@ public partial class SettingsWindow : Window
             if (_vm is { SelectedSource: { } s } && s.Roots.Count == 0 && (s.IsLocal || s.IsM365 && s.IsSignedIn || s.IsZimbra && s.HasPassword || s.IsGlpi && s.HasGlpiToken || s.IsNetBox && s.HasNetBoxToken))
                 _ = s.LoadRootsAsync();
         };
+        // Les champs liés en « LostFocus » ne sont enregistrés qu'en perdant le focus : à la fermeture (bouton, Échap
+        // ou croix), on pousse d'abord la saisie en cours, sinon la dernière valeur tapée serait perdue.
+        Closing += (_, _) =>
+        {
+            if (Keyboard.FocusedElement is TextBox tb)
+            {
+                tb.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+                // Liste modifiable (modèles Claude) : le focus est dans sa zone de texte interne.
+                if (tb.TemplatedParent is ComboBox cb) cb.GetBindingExpression(ComboBox.TextProperty)?.UpdateSource();
+            }
+            PushClaudeKey();
+            PushZimbraPassword();
+            PushGlpiTokens();
+            PushNetBoxToken();
+        };
         Closed += (_, _) => { if (_vm is not null) _vm.PropertyChanged -= Vm_PropertyChanged; };
     }
 
