@@ -344,3 +344,35 @@ private final class KeyCatcherView: NSView {
         return true
     }
 }
+
+/// A sidebar's backdrop, matched to Blablateur and Homericc: the desktop blurred through the window (the system
+/// sidebar material, which turns opaque by itself with Reduce Transparency) and a faint glow in the accent colour.
+struct SidebarBackdrop: View {
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        let strength = colorScheme == .dark ? 1.0 : 0.72
+        ZStack {
+            BehindWindowMaterial()
+            RadialGradient(colors: [.accentColor.opacity(0.22 * strength), .clear],
+                           center: UnitPoint(x: 0.85, y: -0.1), startRadius: 0, endRadius: 340)
+            RadialGradient(colors: [.accentColor.opacity(0.12 * strength), .clear],
+                           center: UnitPoint(x: 0.15, y: 1.1), startRadius: 0, endRadius: 300)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct BehindWindowMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .sidebar
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {}
+}

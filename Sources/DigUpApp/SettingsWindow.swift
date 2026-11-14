@@ -27,8 +27,9 @@ enum SettingsTab: String, CaseIterable {
     }
 }
 
-/// Settings, the way Mac apps lay them out: a toolbar of tabs, and the window sized to each one. Folders is also where
-/// the index shows how far along it is, folder by folder.
+/// Settings, laid out as in System Settings: the pages in a sidebar (the desktop showing through it, as in Blablateur
+/// and Homericc), the selected one beside it. Folders is also where the index shows how far along it is, folder by
+/// folder.
 final class SettingsWindowController: NSObject, NSWindowDelegate {
     let state: SettingsState
     /// Folders → Add Folders…, a sheet on this window.
@@ -37,7 +38,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     let codeSheet: AddFoldersController
     private unowned let app: AppController
     private var window: NSWindow?
-    private var tabs: NSTabViewController?
 
     init(app: AppController) {
         self.app = app
@@ -69,7 +69,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
 
     func show(_ tab: SettingsTab = .general) {
         let window = self.window ?? makeWindow()
-        tabs?.selectedTabViewItemIndex = SettingsTab.allCases.firstIndex(of: tab) ?? 0
         state.tab = tab
         Task { await state.refresh() }
         app.present(window)
@@ -78,30 +77,20 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     var selectedTab: SettingsTab { state.tab }
 
     private func makeWindow() -> NSWindow {
-        let tabs = NSTabViewController()
-        tabs.tabStyle = .toolbar
-        tabs.transitionOptions = [.allowUserInteraction]
-        for tab in SettingsTab.allCases {
-            let controller = NSHostingController(rootView: SettingsPane(tab: tab, state: state))
-            controller.sizingOptions = .preferredContentSize
-            controller.title = tab.title   // the window takes the selected tab's title
-            let item = NSTabViewItem(viewController: controller)
-            item.label = tab.title
-            item.image = NSImage(systemSymbolName: tab.symbol, accessibilityDescription: tab.title)
-            item.identifier = tab.rawValue
-            tabs.addTabViewItem(item)
-        }
-        let window = NSWindow(contentViewController: tabs)
-        window.styleMask = [.titled, .closable]
-        window.toolbarStyle = .preference
+        let controller = NSHostingController(rootView: SettingsRoot(state: state))
+        controller.sizingOptions = []
+        // The split view's toolbar and the page's title reach the window.
+        controller.sceneBridgingOptions = [.toolbars, .title]
+        let window = NSWindow(contentViewController: controller)
+        window.styleMask = [.titled, .closable, .resizable, .fullSizeContentView]
+        window.toolbarStyle = .unified
+        window.setContentSize(NSSize(width: 820, height: 620))
+        window.contentMinSize = NSSize(width: 820, height: 420)
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.center()
-        self.tabs = tabs
         self.window = window
-        state.selectTab = { [weak self] tab in
-            self?.tabs?.selectedTabViewItemIndex = SettingsTab.allCases.firstIndex(of: tab) ?? 0
-        }
+        state.selectTab = { [weak self] tab in self?.state.tab = tab }
         return window
     }
 
@@ -110,7 +99,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         codeSheet.end()
         window?.contentViewController = nil
         window = nil
-        tabs = nil
         app.windowClosed()
     }
 
@@ -169,13 +157,33 @@ final class SettingsState {
     var isLoaded: Bool { summaries != nil }
 }
 
-/// One tab's content, at the width every tab shares.
+/// The pages in the sidebar, the selected one beside it.
+private struct SettingsRoot: View {
+    let state: SettingsState
+
+    var body: some View {
+        NavigationSplitView {
+            List(selection: Binding(get: { state.tab }, set: { if let tab = $0 { state.tab = tab } })) {
+                ForEach(SettingsTab.allCases, id: \.self) { tab in
+                    Label(tab.title, systemImage: tab.symbol)
+                }
+            }
+            .scrollContentBackground(.hidden)
+            .background { SidebarBackdrop() }
+            .navigationSplitViewColumnWidth(190)
+            .toolbar(removing: .sidebarToggle)
+        } detail: {
+            SettingsPane(tab: state.tab, state: state)
+                .id(state.tab)
+                .navigationTitle(state.tab.title)
+        }
+    }
+}
+
+/// One page's content, at the width every page shares; it scrolls when the window is shorter than the page.
 private struct SettingsPane: View {
     let tab: SettingsTab
     let state: SettingsState
-    /// The content's own height. The window is that tall up to what the screen has room for, and scrolls past it (a
-    /// long list of folders ran it off the screen, Add Folders… with it).
-    @State private var height: CGFloat?
 
     var body: some View {
         ScrollView(.vertical) {
@@ -190,15 +198,9 @@ private struct SettingsPane: View {
             }
             .frame(width: 580)
             .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+            .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .frame(width: 580, height: height.map { min($0, Self.tallest) })
-    }
-
-    /// The screen's room below the menu bar, less the window's title bar and tabs and a margin.
-    private static var tallest: CGFloat {
-        (NSScreen.main?.visibleFrame.height ?? 800) - 140
     }
 }
 
