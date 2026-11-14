@@ -35,7 +35,7 @@ final class OnboardingController: NSObject, NSWindowDelegate {
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.isMovableByWindowBackground = true
-        window.title = "Welcome to Fouineur"
+        window.title = "Bienvenue dans Fouineur"
         window.isReleasedWhenClosed = false
         window.delegate = self
         state.close = { [weak self] in self?.close() }
@@ -190,7 +190,7 @@ final class OnboardingState {
     }
 
     func skipFolders(from window: NSWindow?) {
-        app.pickFolders(for: window, prompt: "Skip") { [weak self] picked in
+        app.pickFolders(for: window, prompt: "Ignorer") { [weak self] picked in
             guard !picked.isEmpty else { return }
             self?.folders.skip(picked)
         }
@@ -260,7 +260,7 @@ struct OnboardingView: View {
                     .lineLimit(1)
             }
             if state.step != .welcome, state.step != .ready {
-                Button("Back") { state.back() }
+                Button("Retour") { state.back() }
             }
             Button(continueTitle) { state.next() }
                 .keyboardShortcut(.defaultAction)
@@ -273,26 +273,26 @@ struct OnboardingView: View {
 
     private var continueTitle: String {
         switch state.step {
-        case .welcome: "Get Started"
-        case .folders: state.folders.roots.isEmpty ? "Continue" : "Start Indexing"
-        case .code: "Continue"
-        case .shortcut: "Continue"
-        case .ready: "Done"
+        case .welcome: "Commencer"
+        case .folders: state.folders.roots.isEmpty ? "Continuer" : "Lancer l'indexation"
+        case .code: "Continuer"
+        case .shortcut: "Continuer"
+        case .ready: "Terminé"
         }
     }
 
     private var codeSummary: String {
-        guard !state.codeFolders.roots.isEmpty else { return "Check the folders with your code" }
-        guard state.codeFolders.estimatesDone else { return "Looking at your code…" }
+        guard !state.codeFolders.roots.isEmpty else { return "Coche les dossiers qui contiennent ton code" }
+        guard state.codeFolders.estimatesDone else { return "Examen de ton code…" }
         let seconds = state.codeFolders.totalSeconds
-        return (seconds < 1 ? "Under a second" : "About \(roughDuration(seconds))")
+        return (seconds < 1 ? "Moins d'une seconde" : "Environ \(roughDuration(seconds))")
             + ", \(roughBytes(state.codeFolders.totalBytes))"
     }
 
     private var foldersSummary: String {
-        guard !state.folders.roots.isEmpty else { return "Choose at least one folder" }
-        guard state.folders.estimatesDone else { return "Looking at your folders…" }
-        return "First pass: about \(roughDuration(state.folders.totalSeconds))"
+        guard !state.folders.roots.isEmpty else { return "Choisis au moins un dossier" }
+        guard state.folders.estimatesDone else { return "Examen de tes dossiers…" }
+        return "Premier passage : environ \(roughDuration(state.folders.totalSeconds))"
     }
 }
 
@@ -309,7 +309,7 @@ private struct StepDots: View {
             }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Step \(current + 1) of \(count)")
+        .accessibilityLabel("Étape \(current + 1) sur \(count)")
     }
 }
 
@@ -322,23 +322,23 @@ struct DownloadStatus: View {
             switch download.phase {
             case .ready:
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(Brand.leaf)
-                Text("Model ready")
+                Text("Modèle prêt")
             case .failed(let message):
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text(message).lineLimit(1)
-                Button("Try Again") { download.start() }.controlSize(.small)
-                Button("Use Files…") { download.chooseFiles(for: NSApp.keyWindow) }
+                Button("Réessayer") { download.start() }.controlSize(.small)
+                Button("Utiliser des fichiers…") { download.chooseFiles(for: NSApp.keyWindow) }
                     .controlSize(.small)
-                    .help("Downloaded the model's two files somewhere else? Choose them here.")
+                    .help("Tu as téléchargé les deux fichiers du modèle ailleurs ? Choisis-les ici.")
             case .needed:
                 Image(systemName: "arrow.down.circle").foregroundStyle(.secondary)
-                Text("Model not downloaded")
-                Button("Download") { download.start() }.controlSize(.small)
+                Text("Modèle non téléchargé")
+                Button("Télécharger") { download.start() }.controlSize(.small)
             default:
                 ProgressView(value: download.fraction)
                     .progressViewStyle(.circular)
                     .controlSize(.small)
-                Text("Downloading the model · \(download.progressText)")
+                Text("Téléchargement du modèle · \(download.progressText)")
                     .lineLimit(1)
             }
         }
@@ -357,17 +357,17 @@ private struct WelcomeStep: View {
             Text("Fouineur")
                 .font(.system(size: 30, weight: .bold))
                 .padding(.top, 10)
-            Text("Describe it. Dig it up.")
+            Text("Décris-le. Fouineur le déterre.")
                 .font(.system(size: 16))
                 .foregroundStyle(.secondary)
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 16) {
-                Feature(symbol: "camera.viewfinder", title: "Screenshots and photos",
-                        example: "“that payment error”, “the zebra”, “whiteboard from Tuesday”")
-                Feature(symbol: "doc.text", title: "PDFs and documents",
-                        example: "“the clause about pets in the lease”, “flight receipt”")
-                Feature(symbol: "waveform", title: "Moments inside audio and video",
-                        example: "“where they talk about sleep”, “the part with the drums”")
+                Feature(symbol: "camera.viewfinder", title: "Captures d'écran et photos",
+                        example: "« cette erreur de paiement », « le zèbre », « le tableau blanc de mardi »")
+                Feature(symbol: "doc.text", title: "PDF et documents",
+                        example: "« la clause sur les animaux dans le bail », « reçu du vol »")
+                Feature(symbol: "waveform", title: "Des moments dans l'audio et la vidéo",
+                        example: "« là où ils parlent du sommeil », « le passage avec la batterie »")
             }
             .padding(.top, 30)
             HStack(alignment: .top, spacing: 12) {
@@ -375,9 +375,9 @@ private struct WelcomeStep: View {
                     .font(.system(size: 18))
                     .foregroundStyle(.secondary)
                     .frame(width: 30)
-                Text("Everything is indexed and searched on this Mac. Fouineur downloads its AI model (865 MB) once; "
-                     + "after that it works offline, and nothing you index ever leaves your Mac. Next, Fouineur looks "
-                     + "through your usual folders to say how long each would take; nothing is indexed until you choose.")
+                Text("Tout est indexé et fouillé sur ce Mac. Fouineur télécharge son modèle d'IA (865 Mo) une fois ; "
+                     + "ensuite il marche hors ligne, et rien de ce que tu indexes ne quitte ton Mac. Ensuite, Fouineur parcourt "
+                     + "tes dossiers habituels pour estimer leur durée ; rien n'est indexé tant que tu n'as pas choisi.")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -432,12 +432,12 @@ private struct FoldersStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            StepTitle(title: "What should Fouineur search?",
-                      subtitle: "Pick folders, or open one to pick some of its subfolders. You can change this "
-                          + "anytime in Settings.")
+            StepTitle(title: "Que doit fouiller Fouineur ?",
+                      subtitle: "Choisis des dossiers, ou ouvres-en un pour choisir certains de ses sous-dossiers. Tu pourras changer ça "
+                          + "à tout moment dans les Réglages.")
             ScrollView {
                 VStack(spacing: 6) {
-                    FolderList(choices: state.folders, addTitle: "Add Folder…") {
+                    FolderList(choices: state.folders, addTitle: "Ajouter un dossier…") {
                         state.addFolders(from: NSApp.keyWindow)
                     }
                     SkipChoices(state: state)
@@ -446,8 +446,8 @@ private struct FoldersStep: View {
             .scrollBounceBehavior(.basedOnSize)
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "info.circle").foregroundStyle(.secondary)
-                Text("macOS will ask before Fouineur can read folders like Desktop, Documents and Downloads. "
-                     + "Fouineur only reads files: it never changes, moves or uploads them.")
+                Text("macOS demandera ton accord avant que Fouineur lise des dossiers comme Bureau, Documents et Téléchargements. "
+                     + "Fouineur ne fait que lire les fichiers : il ne les modifie, ne les déplace et ne les envoie jamais.")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.system(size: 11))
@@ -478,25 +478,25 @@ private struct SkipChoices: View {
                             Image(systemName: "minus.circle.fill").foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
-                        .help("Search this folder again")
+                        .help("Refouiller ce dossier")
                     }
                     .font(.system(size: 12))
                 }
                 Button {
                     state.skipFolders(from: NSApp.keyWindow)
                 } label: {
-                    Label("Skip a Folder…", systemImage: "plus")
+                    Label("Ignorer un dossier…", systemImage: "plus")
                 }
                 .controlSize(.small)
                 HStack(spacing: 8) {
-                    Text("File types")
-                    TextField("Extensions", text: $state.skippedTypesText, prompt: Text("e.g. heic, txt"))
+                    Text("Types de fichiers")
+                    TextField("Extensions", text: $state.skippedTypesText, prompt: Text("p. ex. heic, txt"))
                         .labelsHidden()
                         .controlSize(.small)
                         .onSubmit { state.folders.setTypes(state.skippedTypesText) }
                 }
                 .font(.system(size: 12))
-                Text("Code, keys, certificates, hidden folders, app bundles and caches are always skipped.")
+                Text("Le code, les clés, les certificats, les dossiers cachés, les apps et les caches sont toujours ignorés.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -504,7 +504,7 @@ private struct SkipChoices: View {
             .padding(.top, 8)
             .padding(.leading, 4)
         } label: {
-            Text("Skip some folders or file types")
+            Text("Ignorer certains dossiers ou types de fichiers")
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.secondary)
         }
@@ -523,17 +523,17 @@ private struct CodeStep: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            StepTitle(title: "Search your code too?",
-                      subtitle: "Fouineur can find code by what it does: type code: in the search panel, as in "
-                          + "“code: retry with backoff”. It gets an index of its own and never shows up in other "
-                          + "searches. You can turn it on later in Settings → Code.")
-            SwitchRow(title: "Search my code", detail: "Off unless you turn it on.", isOn: $state.searchCode)
+            StepTitle(title: "Fouiller aussi ton code ?",
+                      subtitle: "Fouineur peut trouver du code d'après ce qu'il fait : tape code: dans le panneau de recherche, comme "
+                          + "« code: retry with backoff ». Il a son propre index et n'apparaît jamais dans les autres "
+                          + "recherches. Tu pourras l'activer plus tard dans Réglages → Code.")
+            SwitchRow(title: "Fouiller mon code", detail: "Désactivé sauf si tu l'actives.", isOn: $state.searchCode)
                 .padding(14)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
             if state.searchCode {
                 ScrollView {
                     VStack(spacing: 6) {
-                        FolderList(choices: state.codeFolders, addTitle: "Add Folder…") {
+                        FolderList(choices: state.codeFolders, addTitle: "Ajouter un dossier…") {
                             state.addCodeFolders(from: NSApp.keyWindow)
                         }
                         CodeFolderNote().padding(.top, 4)
@@ -541,8 +541,8 @@ private struct CodeStep: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 HStack {
-                    Text("Open code in")
-                    Picker("Open code in", selection: Binding(get: { CodeEditor.chosen(state.model.settings.codeEditor).id },
+                    Text("Ouvrir le code dans")
+                    Picker("Ouvrir le code dans", selection: Binding(get: { CodeEditor.chosen(state.model.settings.codeEditor).id },
                                                               set: { state.app.setCodeEditor($0) })) {
                         ForEach(CodeEditor.installed) { editor in Text(editor.name).tag(editor.id) }
                         Text(CodeEditor.defaultApp.name).tag(CodeEditor.defaultApp.id)
@@ -564,17 +564,17 @@ private struct ShortcutStep: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            StepTitle(title: "Open Fouineur from anywhere",
-                      subtitle: "Press the shortcut in any app, describe what you're looking for, and press Return.")
+            StepTitle(title: "Ouvre Fouineur de n'importe où",
+                      subtitle: "Appuie sur le raccourci dans n'importe quelle app, décris ce que tu cherches, puis appuie sur Retour.")
             ShortcutRecorder(combo: state.model.hotkey, apply: { state.app.setHotkey($0) },
                              listening: { state.app.hotkeyRecording($0) }, capSize: 20)
                 .padding(.top, 34)
             Group {
                 if state.hotkeyWorked {
-                    Label("That's it. It works from any app.", systemImage: "checkmark.circle.fill")
+                    Label("C'est tout. Ça marche depuis n'importe quelle app.", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(Brand.leaf)
                 } else if let hotkey = state.model.hotkey {
-                    Text("Try it now: press \(hotkey.display).")
+                    Text("Essaie maintenant : appuie sur \(hotkey.display).")
                         .foregroundStyle(.secondary)
                 }
             }
@@ -582,15 +582,15 @@ private struct ShortcutStep: View {
             .padding(.top, 16)
             .animation(.default, value: state.hotkeyWorked)
             VStack(alignment: .leading, spacing: 9) {
-                Text("IN THE SEARCH PANEL")
+                Text("DANS LE PANNEAU DE RECHERCHE")
                     .font(.system(size: 10, weight: .semibold))
                     .tracking(0.6)
                     .foregroundStyle(.secondary)
-                KeyTip(caps: ["↩"], text: "Open the file")
-                KeyTip(caps: ["⌘", "↩"], text: "Show it in Finder")
-                KeyTip(caps: ["Space"], text: "Quick Look, after arrowing to a result")
-                KeyTip(caps: ["⌘", "C"], text: "Copy the file, to paste anywhere")
-                KeyTip(caps: ["esc"], text: "Close")
+                KeyTip(caps: ["↩"], text: "Ouvrir le fichier")
+                KeyTip(caps: ["⌘", "↩"], text: "L'afficher dans le Finder")
+                KeyTip(caps: ["Espace"], text: "Coup d'œil, après avoir choisi un résultat avec les flèches")
+                KeyTip(caps: ["⌘", "C"], text: "Copier le fichier, pour le coller n'importe où")
+                KeyTip(caps: ["esc"], text: "Fermer")
             }
             .padding(18)
             .frame(maxWidth: 340, alignment: .leading)
@@ -622,7 +622,7 @@ private struct ReadyStep: View {
                 .font(.system(size: 60))
                 .foregroundStyle(Brand.gradient)
                 .padding(.top, 8)
-            Text("You're all set")
+            Text("Tout est prêt")
                 .font(.system(size: 26, weight: .bold))
                 .padding(.top, 14)
             Text(progressNote)
@@ -633,7 +633,7 @@ private struct ReadyStep: View {
                 .frame(maxWidth: 470)
                 .padding(.top, 8)
             VStack(alignment: .leading, spacing: 16) {
-                SwitchRow(title: "Open Fouineur when you log in", detail: "So the shortcut always works.",
+                SwitchRow(title: "Ouvrir Fouineur à l'ouverture de session", detail: "Pour que le raccourci marche toujours.",
                           isOn: $state.launchAtLogin)
                 Divider()
                 SwitchRow(title: AppSettings.batteryTitle, detail: AppSettings.batteryDetail,
@@ -645,7 +645,7 @@ private struct ReadyStep: View {
             .padding(.top, 28)
             HStack(spacing: 8) {
                 Image(systemName: "sparkle.magnifyingglass")
-                Text("Fouineur lives in the menu bar, which shows how indexing is going.")
+                Text("Fouineur vit dans la barre des menus, qui montre où en est l'indexation.")
             }
             .font(.system(size: 12))
             .foregroundStyle(.secondary)
@@ -656,15 +656,15 @@ private struct ReadyStep: View {
 
     private var progressNote: String {
         let seconds = state.folders.totalSeconds, later = state.folders.totalLaterSeconds
-        let time = seconds > 0 ? " (about \(roughDuration(seconds)) on this Mac)" : ""
-        let rest = later >= 30 ? " Long PDFs and documents get their first pages in that time, and the rest "
-            + "afterwards (about \(roughDuration(later)) more)." : ""
+        let time = seconds > 0 ? " (environ \(roughDuration(seconds)) sur ce Mac)" : ""
+        let rest = later >= 30 ? " Les longs PDF et documents voient leurs premières pages lues dans ce temps, et le reste "
+            + "ensuite (environ \(roughDuration(later)) de plus)." : ""
         if state.download.isReady {
-            return "Fouineur is reading your folders\(time), newest files first. You can search right away; "
-                + "results fill in as it goes." + rest
+            return "Fouineur lit tes dossiers\(time), les fichiers récents d'abord. Tu peux chercher tout de suite ; "
+                + "les résultats arrivent au fur et à mesure." + rest
         }
-        return "Fouineur starts reading your folders\(time) once the model has downloaded "
-            + "(\(state.download.progressText)). Until then, search finds files by name." + rest
+        return "Fouineur commencera à lire tes dossiers\(time) une fois le modèle téléchargé "
+            + "(\(state.download.progressText)). D'ici là, la recherche trouve les fichiers par leur nom." + rest
     }
 }
 

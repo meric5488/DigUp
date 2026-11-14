@@ -24,11 +24,11 @@ struct SourcesSettings: View {
         Form {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Search your Apple apps").font(.system(size: 13, weight: .semibold))
-                    Text("Mail, notes, events, reminders, photos and iCloud Drive are searched with your folders, by "
-                         + "what's in them. A result shows the mail's subject or the note's title, and opens in its "
-                         + "app. Fouineur keeps a copy of each as a small file on this Mac to search it (iCloud Drive's "
-                         + "files are searched where they are); nothing leaves the Mac.")
+                    Text("Fouiller tes apps Apple").font(.system(size: 13, weight: .semibold))
+                    Text("Mails, notes, événements, rappels, photos et iCloud Drive sont fouillés avec tes dossiers, d'après "
+                         + "leur contenu. Un résultat affiche l'objet du mail ou le titre de la note, et s'ouvre dans son "
+                         + "app. Fouineur en garde une copie sous forme de petit fichier sur ce Mac pour la fouiller (les fichiers "
+                         + "d'iCloud Drive sont fouillés sur place) ; rien ne quitte le Mac.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -42,65 +42,65 @@ struct SourcesSettings: View {
                 Text("Sources")
             }
             Section {
-                Toggle("Sync everything", isOn: binding(\.syncEverything))
+                Toggle("Tout synchroniser", isOn: binding(\.syncEverything))
             } footer: {
-                Text("All mail and its attachments, events from 30 years back to 5 ahead, every completed reminder, "
-                     + "every photo and video (pictures at 2048 px). It takes longer, and more disk space.")
+                Text("Tous les mails et leurs pièces jointes, les événements d'il y a 30 ans à dans 5 ans, tous les rappels terminés, "
+                     + "toutes les photos et vidéos (images en 2048 px). C'est plus long, et prend plus de place.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if options.enabled.contains(.mail) {
                 Section("Mail") {
-                    Picker("Mail received in the last", selection: binding(\.mailYears)) {
+                    Picker("Mails reçus depuis", selection: binding(\.mailYears)) {
                         Text("year").tag(1)
-                        Text("2 years").tag(2)
-                        Text("5 years").tag(5)
-                        Text("10 years").tag(10)
-                        Text("All time").tag(0)
+                        Text("2 ans").tag(2)
+                        Text("5 ans").tag(5)
+                        Text("10 ans").tag(10)
+                        Text("Toujours").tag(0)
                     }
                     .disabled(options.syncEverything)
-                    Toggle("Search attachments (PDFs, documents, pictures)", isOn: binding(\.mailAttachments))
+                    Toggle("Fouiller les pièces jointes (PDF, documents, images)", isOn: binding(\.mailAttachments))
                         .disabled(options.syncEverything)
-                    Toggle("Include junk and deleted mail", isOn: binding(\.mailJunkAndTrash))
+                    Toggle("Inclure les indésirables et les mails supprimés", isOn: binding(\.mailJunkAndTrash))
                 }
             }
             if options.enabled.contains(.calendar) {
-                Section("Calendar") {
-                    Stepper("From \(options.calendarPastYears) \(options.calendarPastYears == 1 ? "year" : "years") ago",
+                Section("Calendrier") {
+                    Stepper("Depuis \(options.calendarPastYears) \(options.calendarPastYears == 1 ? "an" : "ans")",
                             value: binding(\.calendarPastYears), in: 0...20)
                     .disabled(options.syncEverything)
-                    Stepper("To \(options.calendarFutureYears) \(options.calendarFutureYears == 1 ? "year" : "years") ahead",
+                    Stepper("Jusqu'à dans \(options.calendarFutureYears) \(options.calendarFutureYears == 1 ? "an" : "ans")",
                             value: binding(\.calendarFutureYears), in: 0...5)
                     .disabled(options.syncEverything)
-                    Toggle("Include holidays, birthdays and subscribed calendars", isOn: binding(\.calendarSubscribed))
+                    Toggle("Inclure les jours fériés, anniversaires et calendriers abonnés", isOn: binding(\.calendarSubscribed))
                 }
             }
             if options.enabled.contains(.reminders) {
-                Section("Reminders") {
-                    Toggle("Include completed reminders (of the last year)", isOn: binding(\.completedReminders))
+                Section("Rappels") {
+                    Toggle("Inclure les rappels terminés (de l'année écoulée)", isOn: binding(\.completedReminders))
                         .disabled(options.syncEverything)
                 }
             }
             if options.enabled.contains(.photos) {
                 Section {
-                    Picker("Picture size", selection: binding(\.photoSide)) {
-                        Text("Small (1024 px)").tag(1024)
-                        Text("Medium (1280 px)").tag(1280)
-                        Text("Large (2048 px)").tag(2048)
+                    Picker("Taille des images", selection: binding(\.photoSide)) {
+                        Text("Petite (1024 px)").tag(1024)
+                        Text("Moyenne (1280 px)").tag(1280)
+                        Text("Grande (2048 px)").tag(2048)
                     }
                     .disabled(options.syncEverything)
-                    Toggle("Search videos too", isOn: binding(\.photoVideos))
+                    Toggle("Fouiller aussi les vidéos", isOn: binding(\.photoVideos))
                         .disabled(options.syncEverything)
                     if options.photoVideos && !options.syncEverything {
-                        Stepper("Videos up to \(options.photoVideoMinutes) min", value: binding(\.photoVideoMinutes),
+                        Stepper("Vidéos jusqu'à \(options.photoVideoMinutes) min", value: binding(\.photoVideoMinutes),
                                 in: 1...120, step: 5)
                     }
                 } header: {
                     Text("Photos")
                 } footer: {
-                    Text("Photos only in iCloud are downloaded at this size, not in full. A video is copied small "
-                         + "(640×480): it takes longer, and disk space.")
+                    Text("Les photos présentes seulement dans iCloud sont téléchargées à cette taille, pas en entier. Une vidéo est copiée en petit "
+                         + "(640×480) : c'est plus long, et prend de la place.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -108,13 +108,13 @@ struct SourcesSettings: View {
             }
             if options.enabled.contains(.icloud) {
                 Section {
-                    Toggle("Download files that are only in iCloud", isOn: binding(\.icloudDownload))
+                    Toggle("Télécharger les fichiers présents seulement dans iCloud", isOn: binding(\.icloudDownload))
                 } header: {
                     Text("iCloud Drive")
                 } footer: {
-                    Text("iCloud Drive's files are searched where they are. Those only in iCloud (Optimize Mac "
-                         + "Storage) can't be read until they're downloaded: this downloads them, and they take disk "
-                         + "space.")
+                    Text("Les fichiers d'iCloud Drive sont fouillés sur place. Ceux qui ne sont que dans iCloud (Optimiser le stockage "
+                         + "du Mac) ne peuvent être lus qu'une fois téléchargés : cette option les télécharge, et ils prennent de la "
+                         + "place.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -123,19 +123,19 @@ struct SourcesSettings: View {
             if options.anyEnabled {
                 Section {
                     HStack {
-                        Button("Check for Changes Now") { state.app.sources.syncNow() }
+                        Button("Vérifier les changements maintenant") { state.app.sources.syncNow() }
                         Spacer()
                         Button {
                             NSWorkspace.shared.activateFileViewerSelecting([SourcesLayout.root])
                         } label: {
-                            Label("Show the Copies", systemImage: "folder")
+                            Label("Afficher les copies", systemImage: "folder")
                         }
                         .buttonStyle(.link)
                         .help(tildePath(SourcesLayout.root.path))
                     }
                 } footer: {
-                    Text("Changes are picked up as they happen, and checked every 20 minutes. Turning a source off "
-                         + "deletes its copies.")
+                    Text("Les changements sont repris au fil de l'eau, et vérifiés toutes les 20 minutes. Désactiver une source "
+                         + "supprime ses copies.")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -167,7 +167,7 @@ private struct SourceRow: View {
             }
             Spacer()
             if case .needsAccess = sourceState {
-                Button("Open Settings…") { SourceAccess.openPrivacySettings(for: kind) }
+                Button("Ouvrir Réglages…") { SourceAccess.openPrivacySettings(for: kind) }
                     .controlSize(.small)
             }
             Toggle("", isOn: Binding(get: { isOn }, set: { state.app.setSource(kind, on: $0) }))
@@ -181,21 +181,21 @@ private struct SourceRow: View {
     @ViewBuilder private var status: some View {
         switch sourceState {
         case .off:
-            Text("Needs \(kind.accessNeeded)").font(.system(size: 11)).foregroundStyle(.secondary)
+            Text("Nécessite \(kind.accessNeeded)").font(.system(size: 11)).foregroundStyle(.secondary)
         case .needsAccess(let problem):
             Text(problem).font(.system(size: 11)).foregroundStyle(.orange)
                 .fixedSize(horizontal: false, vertical: true)
         case .syncing(let done, let total):
             VStack(alignment: .leading, spacing: 3) {
-                Text(total > 0 ? "Reading \(done.formatted()) of \(total.formatted())…" : "Reading…")
+                Text(total > 0 ? "Lecture : \(done.formatted()) sur \(total.formatted())…" : "Lecture…")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                 if total > 0 {
                     ProgressView(value: Double(done), total: Double(max(total, 1))).controlSize(.small).frame(width: 220)
                 }
             }
         case .ready(let items, let at):
-            let count = "\(items.formatted()) \(items == 1 ? "item" : "items")"
-            Text(at == .distantPast ? count : "\(count) · checked \(at.formatted(.relative(presentation: .named)))")
+            let count = "\(items.formatted()) \(items == 1 ? "élément" : "éléments")"
+            Text(at == .distantPast ? count : "\(count) · vérifié \(at.formatted(.relative(presentation: .named)))")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         case .failed(let problem):
             Text("⚠︎ \(problem)").font(.system(size: 11)).foregroundStyle(.red)

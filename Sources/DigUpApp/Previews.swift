@@ -145,7 +145,7 @@ struct PreviewPane: View {
                 .buttonStyle(.plain)
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
-                .help("Show in Finder")
+                .help("Afficher dans le Finder")
                 Text(row.details)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
@@ -170,7 +170,7 @@ struct PreviewActions: View {
         HStack(spacing: 8) {
             Button(row.openTitle, action: open)
                 .keyboardShortcut(.defaultAction)
-            Button("Show in Finder", action: reveal)
+            Button("Afficher dans le Finder", action: reveal)
         }
         .controlSize(controlSize)
     }
@@ -288,7 +288,7 @@ struct AudioMoment: View {
                         .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)
-                .help(row.loc.map { "Play from \(ResultRow.clock($0))" } ?? "Play")
+                .help(row.loc.map { "Lire à partir de \(ResultRow.clock($0))" } ?? "Lire")
             }
             if let loc = row.loc {
                 VStack(spacing: 5) {
@@ -297,7 +297,7 @@ struct AudioMoment: View {
                                   playhead: playback.isCurrent(row) ? playback.time : nil)
                             .frame(maxWidth: 260)
                     }
-                    Text(playback.isCurrent(row) ? "\(ResultRow.clock(playback.time)) – playing from "
+                    Text(playback.isCurrent(row) ? "\(ResultRow.clock(playback.time)) – lecture depuis "
                          + ResultRow.clock(loc) : span(from: loc))
                         .font(.system(size: 11).monospacedDigit())
                         .foregroundStyle(.secondary)
@@ -311,7 +311,7 @@ struct AudioMoment: View {
     /// "0:25 – 0:55 of 3:12"
     private func span(from start: Double) -> String {
         let end = row.locEnd ?? start + 30
-        let total = row.duration.map { " of " + ResultRow.clock($0) } ?? ""
+        let total = row.duration.map { " sur " + ResultRow.clock($0) } ?? ""
         return ResultRow.clock(start) + " – " + ResultRow.clock(end) + total
     }
 }
@@ -356,8 +356,8 @@ struct PlayButton: View {
                 .overlay(Circle().strokeBorder(.white.opacity(0.7), lineWidth: 1.5))
         }
         .buttonStyle(.plain)
-        .help(row.moment.map { "Play from \(ResultRow.clock($0))" } ?? "Play")
-        .accessibilityLabel(row.moment.map { "Play from \(ResultRow.clock($0))" } ?? "Play")
+        .help(row.moment.map { "Lire à partir de \(ResultRow.clock($0))" } ?? "Lire")
+        .accessibilityLabel(row.moment.map { "Lire à partir de \(ResultRow.clock($0))" } ?? "Lire")
     }
 }
 
@@ -394,7 +394,7 @@ struct Passage: View {
         guard let part = row.loc.map(Int.init), let parts = row.info["chunks"].flatMap(Int.init), parts > 1 else {
             return nil
         }
-        return "Part \(part) of \(parts)"
+        return "Partie \(part) sur \(parts)"
     }
 
     /// Up to ~900 characters from just before the first marked word, the words marked like a search in Preview.

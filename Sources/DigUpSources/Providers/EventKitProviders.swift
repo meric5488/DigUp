@@ -12,8 +12,8 @@ final class CalendarProvider: SourceProvider {
     func accessProblem() -> String? {
         switch EKEventStore.authorizationStatus(for: .event) {
         case .fullAccess: return nil
-        case .notDetermined: return "Turn Calendar off and on again to let Fouineur read your calendars."
-        default: return "Allow Fouineur to read your calendars: System Settings → Privacy & Security → Calendars."
+        case .notDetermined: return "Désactive puis réactive Calendrier pour que Fouineur puisse lire tes calendriers."
+        default: return "Autorise Fouineur à lire tes calendriers : Réglages Système → Confidentialité et sécurité → Calendriers."
         }
     }
 
@@ -144,8 +144,8 @@ final class RemindersProvider: SourceProvider {
     func accessProblem() -> String? {
         switch EKEventStore.authorizationStatus(for: .reminder) {
         case .fullAccess: return nil
-        case .notDetermined: return "Turn Reminders off and on again to let Fouineur read your reminders."
-        default: return "Allow Fouineur to read your reminders: System Settings → Privacy & Security → Reminders."
+        case .notDetermined: return "Désactive puis réactive Rappels pour que Fouineur puisse lire tes rappels."
+        default: return "Autorise Fouineur à lire tes rappels : Réglages Système → Confidentialité et sécurité → Rappels."
         }
     }
 
@@ -162,7 +162,7 @@ final class RemindersProvider: SourceProvider {
             box.reminders = reminders ?? []
             done.signal()
         }
-        guard done.wait(timeout: .now() + 120) == .success else { throw SourceError("Reminders didn't answer") }
+        guard done.wait(timeout: .now() + 120) == .success else { throw SourceError("Rappels n'a pas répondu") }
 
         let yearAgo = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? .distantPast
         let reminders = box.reminders.filter { reminder in

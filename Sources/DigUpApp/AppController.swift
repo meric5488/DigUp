@@ -268,14 +268,14 @@ final class AppController {
     }
 
     /// Asks for folders with the standard open panel (as a sheet when there's a window).
-    func pickFolders(for window: NSWindow?, prompt: String = "Add", then done: @escaping ([URL]) -> Void) {
+    func pickFolders(for window: NSWindow?, prompt: String = "Ajouter", then done: @escaping ([URL]) -> Void) {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = true
         panel.canCreateDirectories = false
         panel.prompt = prompt
-        panel.message = "Choose folders for Fouineur to search."
+        panel.message = "Choisis les dossiers que Fouineur doit fouiller."
         let finish = { (response: NSApplication.ModalResponse) in
             done(response == .OK ? panel.urls.map { AppSettings.folderURL($0.path) } : [])
         }
@@ -300,8 +300,8 @@ final class AppController {
     /// Nil when `combo` is now the hotkey, else why it can't be.
     func setHotkey(_ combo: KeyCombo) -> String? {
         if let conflict = combo.systemConflict { return conflict }
-        if combo == model.windowHotkey { return "The window's shortcut is \(combo.display)" }
-        guard hotkeys.register(combo) else { return "Another app is using \(combo.display)" }
+        if combo == model.windowHotkey { return "\(combo.display) est déjà le raccourci de la fenêtre" }
+        guard hotkeys.register(combo) else { return "Une autre app utilise \(combo.display)" }
         AppSettings.save(hotkey: combo.spec)
         model.settings.hotkey = combo.spec
         model.hotkey = combo
@@ -312,8 +312,8 @@ final class AppController {
     /// Nil when `combo` now opens the window, else why it can't.
     func setWindowHotkey(_ combo: KeyCombo) -> String? {
         if let conflict = combo.systemConflict { return conflict }
-        if combo == model.hotkey { return "The search shortcut is \(combo.display)" }
-        guard windowHotkeys.register(combo) else { return "Another app is using \(combo.display)" }
+        if combo == model.hotkey { return "\(combo.display) est déjà le raccourci de recherche" }
+        guard windowHotkeys.register(combo) else { return "Une autre app utilise \(combo.display)" }
         AppSettings.save(windowHotkey: combo.spec)
         model.settings.windowHotkey = combo.spec
         model.windowHotkey = combo

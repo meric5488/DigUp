@@ -34,7 +34,7 @@ struct ResultRow: Identifiable, Equatable {
         name = source?.title ?? url.lastPathComponent
         if let source {
             // "Mail · INBOX · Jean Dupont" where a file shows its folder.
-            folder = source.subtitle
+            folder = Self.frenchSubtitle(source.subtitle)
         } else if hit.kind == .code, let repo = hit.info["repo"], hit.path.hasPrefix(repo + "/") {
             // Code says where it is in its repo: "billing/payments".
             let parent = (repo as NSString).deletingLastPathComponent
@@ -67,8 +67,23 @@ struct ResultRow: Identifiable, Equatable {
         let list = parts.count > 1 ? parts[1] : ""
         let last = parts.count > 2 ? parts[2...].joined(separator: " · ") : ""
         guard source?.kind == .reminders else { return (last, list, "") }
-        if last.hasPrefix("due ") { return (String(last.dropFirst(4)), list, "To do") }
-        return ("", list, last == "done" ? "Done" : "To do")
+        if last.hasPrefix("due ") { return (String(last.dropFirst(4)), list, "À faire") }
+        return ("", list, last == "done" ? "Terminé" : "À faire")
+    }
+
+    /// The sources write their subtitles in English ("Reminders · Groceries · due 3 May 2025"), and `agenda` reads
+    /// them that way: translated only where they're shown.
+    static func frenchSubtitle(_ subtitle: String) -> String {
+        let names = ["Calendar": "Calendrier", "Reminders": "Rappels", "Mail attachment": "Pièce jointe Mail",
+                     "Notes attachment": "Pièce jointe Notes"]
+        var parts = subtitle.components(separatedBy: " · ")
+        guard let first = parts.first else { return subtitle }
+        if first == "Reminders", let last = parts.last, parts.count > 2 {
+            parts[parts.count - 1] = last == "done" ? "terminé" : last == "open" ? "à faire"
+                : last.hasPrefix("due ") ? "échéance " + last.dropFirst(4) : last
+        }
+        parts[0] = names[first] ?? first
+        return parts.joined(separator: " · ")
     }
 
     /// The name to show: left to right as Finder shows it, also when it starts in Arabic ("ملاحظة.md", not "md.ملاحظة").
@@ -105,8 +120,8 @@ struct ResultRow: Identifiable, Equatable {
         guard let loc else { return nil }
         let (first, last) = (Int(loc), Int(locEnd ?? loc))
         switch segment {
-        case .lines: return first == last ? "line \(first)" : "lines \(first)–\(last)"
-        case .cells: return first == last ? "cell \(first)" : "cells \(first)–\(last)"
+        case .lines: return first == last ? "ligne \(first)" : "lignes \(first)–\(last)"
+        case .cells: return first == last ? "cellule \(first)" : "cellules \(first)–\(last)"
         default: return nil
         }
     }
@@ -118,19 +133,19 @@ struct ResultRow: Identifiable, Equatable {
 
     /// Why it's here, in a few words: "Matches the picture", "Matches the frame at 0:06".
     var reason: String {
-        guard matchedMeaning else { return matchedWords ? "Has your words" : "Matches its name" }
+        guard matchedMeaning else { return matchedWords ? "Contient tes mots" : "Correspond à son nom" }
         let place = loc.map(Self.clock) ?? ""
-        let page = loc.map { "page \(Int($0))" } ?? "a page"
+        let page = loc.map { "la page \(Int($0))" } ?? "une page"
         switch segment {
-        case .image: return kind == .screenshot ? "Matches what's on screen" : "Matches the picture"
-        case .ocr: return "Matches the text in it"
-        case .frame: return "Matches the frame at \(place)"
-        case .audio: return kind == .video ? "Matches the sound at \(place)" : "Matches what's heard at \(place)"
-        case .page: return "Matches the text on \(page)"
-        case .pageImage: return "Matches \(page)"
-        case .chunk: return "Matches its text"
-        case .name: return "Matches its name"
-        case .lines, .cells: return "Matches \(span ?? "the code")"
+        case .image: return kind == .screenshot ? "Correspond à ce qui est à l'écran" : "Correspond à l'image"
+        case .ocr: return "Correspond au texte qu'elle contient"
+        case .frame: return "Correspond à l'image à \(place)"
+        case .audio: return kind == .video ? "Correspond au son à \(place)" : "Correspond à ce qu'on entend à \(place)"
+        case .page: return "Correspond au texte de \(page)"
+        case .pageImage: return "Correspond à \(page)"
+        case .chunk: return "Correspond à son texte"
+        case .name: return "Correspond à son nom"
+        case .lines, .cells: return "Correspond " + (span.map { $0.contains("–") ? "aux \($0)" : "à la \($0)" } ?? "au code")
         }
     }
 
@@ -140,9 +155,9 @@ struct ResultRow: Identifiable, Equatable {
         if kind == .code {
             var parts = [CodeExtractor.language(of: url.path)]
             if let cells = info["cells"].flatMap(Int.init) {
-                parts.append(cells == 1 ? "1 cell" : "\(cells) cells")
+                parts.append(cells == 1 ? "1 cellule" : "\(cells) cellules")
             } else if let lines = info["lines"].flatMap(Int.init) {
-                parts.append(lines == 1 ? "1 line" : "\(lines.formatted()) lines")
+                parts.append(lines == 1 ? "1 ligne" : "\(lines.formatted()) lignes")
             }
             parts.append(modified.formatted(date: .abbreviated, time: .omitted))
             if size > 0 { parts.append(bytes(size)) }
@@ -153,9 +168,9 @@ struct ResultRow: Identifiable, Equatable {
         // A long file still being read (`Indexer.finishLongFiles`): what isn't read yet can't match.
         let readTo = info["read_to"].flatMap(Int.init)
         if let pages = info["pages"].flatMap(Int.init) {
-            parts.append((pages == 1 ? "1 page" : "\(pages) pages") + (readTo.map { ", \($0) read so far" } ?? ""))
+            parts.append((pages == 1 ? "1 page" : "\(pages) pages") + (readTo.map { ", \($0) lues pour l'instant" } ?? ""))
         } else if readTo != nil {
-            parts.append("partly read so far")
+            parts.append("lu en partie pour l'instant")
         }
         if let duration { parts.append(Self.clock(duration)) }
         if size > 0 { parts.append(bytes(size)) }
@@ -230,10 +245,10 @@ enum ResultGroupKind: CaseIterable {
 
     var title: String {
         switch self {
-        case .screenshots: "Screenshots"
+        case .screenshots: "Captures d'écran"
         case .images: "Images"
         case .documents: "Documents"
-        case .video: "Video"
+        case .video: "Vidéo"
         case .audio: "Audio"
         case .code: "Code"
         case .mail, .notes, .calendar, .reminders, .photos, .icloud: source!.title
@@ -311,12 +326,12 @@ struct ResultSet: Equatable {
 extension FileKind {
     var title: String {
         switch self {
-        case .screenshot: "Screenshot"
+        case .screenshot: "Capture d'écran"
         case .image: "Image"
         case .pdf: "PDF"
         case .doc: "Document"
         case .audio: "Audio"
-        case .video: "Video"
+        case .video: "Vidéo"
         case .code: "Code"
         }
     }

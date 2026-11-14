@@ -137,20 +137,20 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
         if let version = model.updateAvailable {
-            menu.addItem(ActionMenuItem("Update to Fouineur \(version)…") { [weak self] in self?.onCheckForUpdates() })
+            menu.addItem(ActionMenuItem("Mettre à jour vers Fouineur \(version)…") { [weak self] in self?.onCheckForUpdates() })
             menu.addItem(.separator())
         }
 
         if !model.hasFolders {
-            menu.addItem(ActionMenuItem("Choose Folders to Search…") { [weak self] in self?.onChooseFolders() })
+            menu.addItem(ActionMenuItem("Choisir les dossiers à fouiller…") { [weak self] in self?.onChooseFolders() })
         }
-        let search = ActionMenuItem("Search…") { [weak self] in self?.onSearch() }
+        let search = ActionMenuItem("Rechercher…") { [weak self] in self?.onSearch() }
         if let hotkey = model.hotkey, let (key, modifiers) = hotkey.menuEquivalent {
             search.keyEquivalent = key
             search.keyEquivalentModifierMask = modifiers
         }
         menu.addItem(search)
-        let open = ActionMenuItem("Open Fouineur") { [weak self] in self?.onOpenWindow() }
+        let open = ActionMenuItem("Ouvrir Fouineur") { [weak self] in self?.onOpenWindow() }
         if let hotkey = model.windowHotkey, let (key, modifiers) = hotkey.menuEquivalent {
             open.keyEquivalent = key
             open.keyEquivalentModifierMask = modifiers
@@ -159,22 +159,22 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         if model.hasFolders {
             menu.addItem(.separator())
             let paused = model.status.paused
-            menu.addItem(ActionMenuItem(paused ? "Resume Indexing" : "Pause Indexing") { [weak self] in
+            menu.addItem(ActionMenuItem(paused ? "Reprendre l'indexation" : "Suspendre l'indexation") { [weak self] in
                 self?.onPauseChanged(!paused)
             })
         }
         switch model.download.phase {
         case .failed, .needed:
-            menu.addItem(ActionMenuItem("Download the Model") { [weak self] in self?.model.download.start() })
+            menu.addItem(ActionMenuItem("Télécharger le modèle") { [weak self] in self?.model.download.start() })
         default:
             break
         }
         menu.addItem(.separator())
-        menu.addItem(ActionMenuItem("Settings…", key: ",") { [weak self] in self?.onSettings() })
+        menu.addItem(ActionMenuItem("Réglages…", key: ",") { [weak self] in self?.onSettings() })
         if model.updateAvailable == nil {
-            menu.addItem(ActionMenuItem("Check for Updates…") { [weak self] in self?.onCheckForUpdates() })
+            menu.addItem(ActionMenuItem("Rechercher les mises à jour…") { [weak self] in self?.onCheckForUpdates() })
         }
-        menu.addItem(ActionMenuItem("Quit Fouineur", key: "q") { NSApp.terminate(nil) })
+        menu.addItem(ActionMenuItem("Quitter Fouineur", key: "q") { NSApp.terminate(nil) })
     }
 
     /// The menu as text, for the -debugMenu launch argument (menus can't be clicked from a script).
@@ -226,13 +226,13 @@ struct MenuStatusView: View {
     private var detail: String? {
         if model.download.isActive { return model.download.progressText }
         if case .failed(let message) = model.download.phase { return message }
-        guard model.hasFolders else { return "Pick the folders it should search." }
+        guard model.hasFolders else { return "Choisis les dossiers à fouiller." }
         let missing = Set(model.status.missingRoots), unreadable = Set(model.status.unreadableRoots)
         let names = model.settings.roots.map { root in
-            root.lastPathComponent + (missing.contains(root.path) ? " (not connected)"
-                                      : unreadable.contains(root.path) ? " (no access)" : "")
+            root.lastPathComponent + (missing.contains(root.path) ? " (non connecté)"
+                                      : unreadable.contains(root.path) ? " (pas d'accès)" : "")
         }
-        return "In " + names.joined(separator: ", ")
+        return "Dans " + names.joined(separator: ", ")
     }
 }
 

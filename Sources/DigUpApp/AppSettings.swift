@@ -55,8 +55,8 @@ nonisolated struct AppSettings: Sendable {
     static let defaultWindowHotkey = "opt+shift+cmd+space"
 
     /// The battery switch, in onboarding and Settings.
-    static let batteryTitle = "Index on battery power"
-    static let batteryDetail = "When it's off, a folder's first pass waits for a charger. New files always go in right away."
+    static let batteryTitle = "Indexer sur batterie"
+    static let batteryDetail = "Désactivé, le premier passage d'un dossier attend le chargeur. Les nouveaux fichiers sont toujours indexés tout de suite."
 
     /// Where settings are saved. Reads see launch arguments first either way. (UserDefaults is thread-safe.)
     nonisolated(unsafe) static let defaults: UserDefaults = {

@@ -22,10 +22,10 @@ final class NotesProvider: SourceProvider {
     func accessProblem() -> String? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: Self.container.path) || fm.fileExists(atPath: Self.database.path) else {
-            return "Notes has no notes on this Mac yet."
+            return "Notes n'a encore aucune note sur ce Mac."
         }
         guard let handle = try? FileHandle(forReadingFrom: Self.database) else {
-            return "Give Fouineur Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Notes."
+            return "Donne à Fouineur l'accès complet au disque (Réglages Système → Confidentialité et sécurité → Accès complet au disque) pour lire Notes."
         }
         try? handle.close()
         return nil
@@ -107,7 +107,7 @@ final class NotesProvider: SourceProvider {
     /// The column names change between macOS versions (ZTITLE1, ZCREATIONDATE3…): each is used if it's there.
     private func readNotes(_ db: Database, columns: Set<String>) throws -> [Note] {
         guard columns.contains("ZTITLE1"), columns.contains("ZIDENTIFIER") else {
-            throw SourceError("This version of Notes stores notes in a way Fouineur doesn't know yet")
+            throw SourceError("Cette version de Notes enregistre les notes d'une façon que Fouineur ne connaît pas encore")
         }
         let modified = ["ZMODIFICATIONDATE1", "ZMODIFICATIONDATE"].first(where: columns.contains) ?? "NULL"
         let created = ["ZCREATIONDATE3", "ZCREATIONDATE2", "ZCREATIONDATE1", "ZCREATIONDATE"]

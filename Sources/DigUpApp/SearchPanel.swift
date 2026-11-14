@@ -392,7 +392,7 @@ final class SearchPanelController {
         pasteboard.clearContents()
         // As a file, like ⌘C in Finder: paste into a folder, a chat or a mail.
         pasteboard.writeObjects([row.url as NSURL])
-        flash("Copied \(row.name)")
+        flash("\(row.name) copié")
     }
 
     /// The search window, with this query (and only one kind, if given): for a bigger look.

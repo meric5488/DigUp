@@ -44,10 +44,10 @@ extension ResultRow {
     /// opens with your words in Preview's search, but Preview doesn't go to the page by itself. Code opens in the
     /// editor chosen for it: "Open in Zed".
     var openTitle: String {
-        if let source { return "Open in \(source.kind.title)" }
-        if kind == .code, !CodeEditor.current.id.isEmpty { return "Open in \(CodeEditor.current.name)" }
-        if let moment, moment >= 1, Opener.jumpsToMoments(url) { return "Open at \(Self.clock(moment))" }
-        return "Open"
+        if let source { return "Ouvrir dans \(source.kind.title)" }
+        if kind == .code, !CodeEditor.current.id.isEmpty { return "Ouvrir dans \(CodeEditor.current.name)" }
+        if let moment, moment >= 1, Opener.jumpsToMoments(url) { return "Ouvrir à \(Self.clock(moment))" }
+        return "Ouvrir"
     }
 
     /// The line a code result opens at: where the name is defined or the query's words are, else where its stretch

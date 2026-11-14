@@ -32,9 +32,9 @@ final class MailProvider: SourceProvider {
         do {
             _ = try FileManager.default.contentsOfDirectory(atPath: Self.mailDirectory.path)
         } catch {
-            return "Give Fouineur Full Disk Access (System Settings → Privacy & Security → Full Disk Access) to read Mail."
+            return "Donne à Fouineur l'accès complet au disque (Réglages Système → Confidentialité et sécurité → Accès complet au disque) pour lire Mail."
         }
-        if versionFolder() == nil { return "Mail has no messages on this Mac yet." }
+        if versionFolder() == nil { return "Mail n'a encore aucun message sur ce Mac." }
         return nil
     }
 
@@ -57,7 +57,7 @@ final class MailProvider: SourceProvider {
     }
 
     func sync(_ context: SyncContext) throws {
-        guard let store = versionFolder() else { throw SourceError("Mail has no messages on this Mac yet") }
+        guard let store = versionFolder() else { throw SourceError("Mail n'a encore aucun message sur ce Mac") }
         let options = context.options
         let found = list(store, options: options)
         context.setTotal(found.count)

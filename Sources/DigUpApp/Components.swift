@@ -125,7 +125,7 @@ struct MomentBar: View {
             }
         }
         .frame(height: 4)
-        .accessibilityLabel("At \(ResultRow.clock(start)) of \(ResultRow.clock(duration))")
+        .accessibilityLabel("À \(ResultRow.clock(start)) sur \(ResultRow.clock(duration))")
     }
 }
 
@@ -171,13 +171,13 @@ extension FileKind {
     func counted(_ count: Int) -> String {
         let one = count == 1
         let noun = switch self {
-        case .screenshot: one ? "screenshot" : "screenshots"
+        case .screenshot: one ? "capture d'écran" : "captures d'écran"
         case .image: one ? "image" : "images"
         case .pdf: one ? "PDF" : "PDFs"
         case .doc: one ? "document" : "documents"
-        case .audio: one ? "audio file" : "audio files"
-        case .video: one ? "video" : "videos"
-        case .code: one ? "code file" : "code files"
+        case .audio: one ? "fichier audio" : "fichiers audio"
+        case .video: one ? "vidéo" : "vidéos"
+        case .code: one ? "fichier de code" : "fichiers de code"
         }
         return "\(count.formatted()) \(noun)"
     }
@@ -232,11 +232,11 @@ struct ShortcutRecorder: View {
             Button { setRecording(!recording) } label: {
                 Group {
                     if recording {
-                        Text("Press the new shortcut…").foregroundStyle(.secondary)
+                        Text("Appuie sur le nouveau raccourci…").foregroundStyle(.secondary)
                     } else if let combo {
                         Keycaps(caps: combo.caps, size: capSize)
                     } else {
-                        Text("Click to set a shortcut").foregroundStyle(.secondary)
+                        Text("Clique pour définir un raccourci").foregroundStyle(.secondary)
                     }
                 }
                 .font(.system(size: 13))
@@ -251,8 +251,8 @@ struct ShortcutRecorder: View {
             }
             .buttonStyle(.plain)
             .background(KeyCatcher(active: recording, onKey: handle, onResign: { setRecording(false) }))
-            .accessibilityLabel(recording ? "Recording a new shortcut" : "Shortcut \(combo?.display ?? "none"), click to change")
-            Text(problem ?? (recording ? "Esc cancels" : "Click to change"))
+            .accessibilityLabel(recording ? "Enregistrement d'un nouveau raccourci" : "Raccourci \(combo?.display ?? "aucun"), clique pour le changer")
+            Text(problem ?? (recording ? "Échap pour annuler" : "Clique pour changer"))
                 .font(.system(size: 11))
                 .foregroundStyle(problem == nil ? AnyShapeStyle(.tertiary) : AnyShapeStyle(Color.red))
                 .multilineTextAlignment(.center)
@@ -272,7 +272,7 @@ struct ShortcutRecorder: View {
                                                                                                .numericPad])
         if event.keyCode == 53, flags.isEmpty { return setRecording(false) }   // Esc
         guard let combo = KeyCombo(keyCode: event.keyCode, flags: flags) else {
-            problem = "Use ⌘, ⌥ or ⌃ with a key"
+            problem = "Utilise ⌘, ⌥ ou ⌃ avec une touche"
             return
         }
         if let why = apply(combo) {

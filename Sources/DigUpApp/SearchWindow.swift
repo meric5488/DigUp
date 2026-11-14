@@ -421,7 +421,7 @@ struct SearchWindowView: View {
                             Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                         }
                         .buttonStyle(.plain)
-                        .help("Clear")
+                        .help("Effacer")
                     }
                 }
                 .padding(.horizontal, 14)
@@ -442,8 +442,8 @@ struct SearchWindowView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help(search.showsPreview ? "Hide Preview" : "Show Preview")
-                    .accessibilityLabel(search.showsPreview ? "Hide Preview" : "Show Preview")
+                    .help(search.showsPreview ? "Masquer l'aperçu" : "Afficher l'aperçu")
+                    .accessibilityLabel(search.showsPreview ? "Masquer l'aperçu" : "Afficher l'aperçu")
                     Button {
                         app.showSettings()
                     } label: {
@@ -454,8 +454,8 @@ struct SearchWindowView: View {
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .help("Settings (⌘,)")
-                    .accessibilityLabel("Settings")
+                    .help("Réglages (⌘,)")
+                    .accessibilityLabel("Réglages")
                 }
                 .padding(.horizontal, 2)
                 .glass(in: Capsule(), interactive: true, fallback: Color.clear)
@@ -473,12 +473,12 @@ struct SearchWindowView: View {
         if !model.hasFolders {
             VStack(spacing: 0) {
                 BrandMark()
-                Text("Choose folders to search").font(.system(size: 20, weight: .bold)).padding(.top, 18)
-                Text("Fouineur only looks where you tell it to.")
+                Text("Choisis les dossiers à fouiller").font(.system(size: 20, weight: .bold)).padding(.top, 18)
+                Text("Fouineur ne regarde que là où tu le lui dis.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .padding(.top, 6)
-                Button("Choose Folders…") { app.chooseFolders() }
+                Button("Choisir des dossiers…") { app.chooseFolders() }
                     .controlSize(.large)
                     .keyboardShortcut(.defaultAction)
                     .padding(.top, 18)
@@ -493,9 +493,9 @@ struct SearchWindowView: View {
             ProgressView().controlSize(.small).frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if search.results.isEmpty {
             EmptyState(symbol: search.isCode ? FileKind.code.symbol : "magnifyingglass",
-                       title: "No good matches for “\(search.query.trimmingCharacters(in: .whitespaces))”",
-                       message: search.isCode ? "Try saying what the code does, or a name that's in it."
-                           : "Try describing what's in it: what you'd see or hear, or words you remember.")
+                       title: "Rien de vraiment pertinent pour « \(search.query.trimmingCharacters(in: .whitespaces)) »",
+                       message: search.isCode ? "Essaie de dire ce que fait le code, ou un nom qui s'y trouve."
+                           : "Essaie de décrire ce qu'il contient : ce qu'on y verrait ou entendrait, ou des mots dont tu te souviens.")
         } else if search.isCode {
             CodeResultsList(search: search)
         } else {
@@ -512,7 +512,7 @@ struct SearchWindowView: View {
             Button(model.statusLine) { app.showSettings(.folders) }
                 .buttonStyle(.plain)
                 .lineLimit(1)
-                .help("Folders and indexing")
+                .help("Dossiers et indexation")
             Spacer()
             if search.hasResults, !search.query.isEmpty {
                 Text(model.resultsCaveat ?? resultCount).lineLimit(1)
@@ -521,11 +521,11 @@ struct SearchWindowView: View {
                 Button {
                     app.updates.checkNow()
                 } label: {
-                    Label("Fouineur \(version) is available", systemImage: "arrow.down.circle.fill")
+                    Label("Fouineur \(version) est disponible", systemImage: "arrow.down.circle.fill")
                         .foregroundStyle(Brand.ember)
                 }
                 .buttonStyle(.plain)
-                .help("See what's new and update")
+                .help("Voir les nouveautés et mettre à jour")
             }
         }
         .font(.system(size: 11))
@@ -536,15 +536,15 @@ struct SearchWindowView: View {
 
     /// Examples of what to type: code's with the Code chip on, and one of them with code search on (as the panel's).
     private var placeholder: String {
-        if search.filter == .code { return "Describe the code: “retry a request with backoff”, a name in it…" }
-        return model.hasCode ? "Describe it: “zebra in a video”, “code: retry with backoff”…"
-            : "Describe it: “receipt from the hardware store”, “zebra in a video”…"
+        if search.filter == .code { return "Décris le code : « retry a request with backoff », un nom qu'il contient…" }
+        return model.hasCode ? "Décris-le : « zèbre dans une vidéo », « code: retry with backoff »…"
+            : "Décris-le : « ticket de caisse du magasin de bricolage », « zèbre dans une vidéo »…"
     }
 
     private var resultCount: String {
         let count = search.results.ranked.count
-        return (count == 1 ? "1 result" : "\(count) results")
-            + (search.results.weaker.isEmpty ? "" : " · \(search.results.weaker.count) weaker")
+        return (count == 1 ? "1 résultat" : "\(count) résultats")
+            + (search.results.weaker.isEmpty ? "" : " · \(search.results.weaker.count) moins \(search.results.weaker.count == 1 ? "pertinent" : "pertinents")")
     }
 }
 
@@ -592,7 +592,7 @@ private struct KindFilters: View {
     }
 
     @ViewBuilder private var kinds: some View {
-        chip(title: "All", symbol: nil, count: nil, selected: search.filter == nil && !search.isCode, shortcut: 1) {
+        chip(title: "Tout", symbol: nil, count: nil, selected: search.filter == nil && !search.isCode, shortcut: 1) {
             search.filter = nil
         }
         ForEach(Array(ResultGroupKind.files.enumerated()), id: \.element) { index, kind in
@@ -716,9 +716,9 @@ private struct AgendaTable: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            line(icon: nil, title: "Title", when: "When",
-                 list: hasEvents && hasReminders ? "Calendar / List" : hasEvents ? "Calendar" : "List",
-                 detail: hasEvents && hasReminders ? "Where / Status" : hasEvents ? "Where" : "Status")
+            line(icon: nil, title: "Titre", when: "Quand",
+                 list: hasEvents && hasReminders ? "Calendrier / Liste" : hasEvents ? "Calendrier" : "Liste",
+                 detail: hasEvents && hasReminders ? "Lieu / État" : hasEvents ? "Lieu" : "État")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.secondary)
                 .frame(height: 26)
@@ -921,17 +921,17 @@ private struct CodeOffOrHint: View {
                 .font(.system(size: 34, weight: .medium))
                 .foregroundStyle(Brand.gradient)
             if phase == .codeOff {
-                Text("Code search is off").font(.system(size: 17, weight: .semibold))
-                Text("Fouineur can find code by what it does, in the folders you pick. Code gets an index of its own and "
-                     + "never shows up in other searches.")
+                Text("La recherche de code est désactivée").font(.system(size: 17, weight: .semibold))
+                Text("Fouineur peut trouver du code d'après ce qu'il fait, dans les dossiers que tu choisis. Le code a son propre index et "
+                     + "n'apparaît jamais dans les autres recherches.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
-                Button("Choose Code Folders…", action: chooseFolders).padding(.top, 6)
+                Button("Choisir des dossiers de code…", action: chooseFolders).padding(.top, 6)
             } else {
-                Text("Search your code").font(.system(size: 17, weight: .semibold))
-                Text("Say what the code does, or type a name that's in it.")
+                Text("Chercher dans ton code").font(.system(size: 17, weight: .semibold))
+                Text("Dis ce que fait le code, ou tape un nom qui s'y trouve.")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
@@ -977,7 +977,7 @@ struct WeakerToggle: View {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
                     .rotationEffect(.degrees(expanded ? 90 : 0))
-                Text(expanded ? "Weaker matches" : "\(count) weaker \(count == 1 ? "match" : "matches")")
+                Text(expanded ? "Résultats moins pertinents" : "\(count) \(count == 1 ? "résultat moins pertinent" : "résultats moins pertinents")")
                     .font(.system(size: 12, weight: .medium))
             }
             .foregroundStyle(.secondary)
@@ -1023,18 +1023,18 @@ private struct SearchHome: View {
     @State private var kinds: [FileKind: Int] = [:]
 
     private static let examples: [(text: String, kind: ResultGroupKind)] = [
-        ("a screenshot of an error message", .screenshots), ("receipt", .documents), ("whiteboard notes", .images),
-        ("someone laughing", .audio), ("a dog on the beach", .video), ("slides about the budget", .documents),
+        ("capture d'un message d'erreur", .screenshots), ("facture", .documents), ("notes au tableau blanc", .images),
+        ("quelqu'un qui rit", .audio), ("un chien sur la plage", .video), ("diapos sur le budget", .documents),
     ]
 
     var body: some View {
         VStack(spacing: 0) {
             BrandMark()
-            Text("Describe it. Dig it up.")
+            Text("Décris-le. Fouineur le déterre.")
                 .font(.system(size: 24, weight: .bold))
                 .padding(.top, 18)
-            Text("Type what you remember in the search field above: what's in it, what it looks or sounds like, or "
-                 + "words from it.")
+            Text("Tape ce dont tu te souviens dans le champ de recherche : ce qu'il contient, à quoi il ressemble, ce qu'on y entend, ou "
+                 + "des mots qu'il contient.")
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -1057,15 +1057,15 @@ private struct SearchHome: View {
                 if !kinds.isEmpty {
                     HStack(spacing: 8) {
                         KindCounts(counts: kinds)
-                        Text("in \(folders)")
+                        Text("dans \(folders)")
                     }
                 } else if model.status.searchable > 0 {
-                    Text("\(model.status.searchable.formatted()) files to search in \(folders)")
+                    Text("\(model.status.searchable.formatted()) fichiers à fouiller dans \(folders)")
                 }
                 if let hotkey = model.hotkey {
                     HStack(spacing: 6) {
                         Keycaps(caps: hotkey.caps, size: 10)
-                        Text("opens Fouineur from any app")
+                        Text("ouvre Fouineur depuis n'importe quelle app")
                     }
                 }
             }
@@ -1091,7 +1091,7 @@ private struct SearchHome: View {
 
     private var folders: String {
         let names = model.settings.roots.map(\.lastPathComponent)
-        return names.count <= 3 ? names.formatted(.list(type: .and)) : "\(names.count) folders"
+        return names.count <= 3 ? names.formatted(.list(type: .and)) : "\(names.count) dossiers"
     }
 }
 
@@ -1135,7 +1135,7 @@ private struct ExampleChip: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .help("Search for “\(text)”")
+        .help("Rechercher « \(text) »")
         .onHover { inside in
             hovering = inside
             if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }

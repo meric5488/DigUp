@@ -10,10 +10,10 @@ final class ICloudDriveProvider: SourceProvider {
     func accessProblem() -> String? {
         let fm = FileManager.default
         guard fm.fileExists(atPath: SourcesLayout.iCloudDrive.path) else {
-            return "iCloud Drive is off on this Mac: System Settings → Apple Account → iCloud → iCloud Drive."
+            return "iCloud Drive est désactivé sur ce Mac : Réglages Système → Compte Apple → iCloud → iCloud Drive."
         }
         guard (try? fm.contentsOfDirectory(atPath: SourcesLayout.iCloudDrive.path)) != nil else {
-            return "Give Fouineur Full Disk Access: System Settings → Privacy & Security → Full Disk Access."
+            return "Donne à Fouineur l'accès complet au disque : Réglages Système → Confidentialité et sécurité → Accès complet au disque."
         }
         return nil
     }

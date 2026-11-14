@@ -13,7 +13,7 @@ nonisolated struct KeyCombo: Equatable, Sendable {
 
     private static let keys: [String: (code: Int, name: String)] = {
         var keys: [String: (Int, String)] = [
-            "space": (kVK_Space, "Space"), "return": (kVK_Return, "↩"), "tab": (kVK_Tab, "⇥"),
+            "space": (kVK_Space, "Espace"), "return": (kVK_Return, "↩"), "tab": (kVK_Tab, "⇥"),
             "escape": (kVK_Escape, "⎋"), "esc": (kVK_Escape, "⎋"), "slash": (kVK_ANSI_Slash, "/"),
             "period": (kVK_ANSI_Period, "."), "comma": (kVK_ANSI_Comma, ","), "semicolon": (kVK_ANSI_Semicolon, ";"),
             "quote": (kVK_ANSI_Quote, "'"), "backslash": (kVK_ANSI_Backslash, "\\"), "grave": (kVK_ANSI_Grave, "`"),
@@ -105,13 +105,13 @@ nonisolated struct KeyCombo: Equatable, Sendable {
         }
         guard taken else { return nil }
         switch (Int(keyCode), Int(carbonModifiers)) {
-        case (kVK_Space, cmdKey): return "Spotlight uses \(display)"
-        case (kVK_Space, cmdKey | optionKey): return "Finder's search window uses \(display)"
-        case (kVK_Space, controlKey), (kVK_Space, controlKey | optionKey): return "Switching input sources uses \(display)"
-        case (kVK_Space, controlKey | cmdKey): return "The emoji picker uses \(display)"
+        case (kVK_Space, cmdKey): return "Spotlight utilise \(display)"
+        case (kVK_Space, cmdKey | optionKey): return "La fenêtre de recherche du Finder utilise \(display)"
+        case (kVK_Space, controlKey), (kVK_Space, controlKey | optionKey): return "Le changement de source de saisie utilise \(display)"
+        case (kVK_Space, controlKey | cmdKey): return "Le sélecteur d'emoji utilise \(display)"
         case (kVK_ANSI_3, cmdKey | shiftKey), (kVK_ANSI_4, cmdKey | shiftKey), (kVK_ANSI_5, cmdKey | shiftKey):
-            return "Screenshots use \(display)"
-        default: return "macOS uses \(display) for one of its shortcuts"
+            return "Les captures d'écran utilisent \(display)"
+        default: return "macOS utilise \(display) pour l'un de ses raccourcis"
         }
     }
 }
@@ -126,7 +126,7 @@ extension KeyCombo {
         if carbonModifiers & UInt32(controlKey) != 0 { flags.insert(.control) }
         let name = display.trimmingCharacters(in: CharacterSet(charactersIn: "⌃⌥⇧⌘"))
         switch name {
-        case "Space": return (" ", flags)
+        case "Espace": return (" ", flags)
         case _ where name.count == 1: return (name.lowercased(), flags)
         default: return nil
         }

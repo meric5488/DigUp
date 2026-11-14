@@ -17,8 +17,8 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
         switch self {
         case .mail: "Mail"
         case .notes: "Notes"
-        case .calendar: "Calendar"
-        case .reminders: "Reminders"
+        case .calendar: "Calendrier"
+        case .reminders: "Rappels"
         case .photos: "Photos"
         case .icloud: "iCloud Drive"
         }
@@ -27,8 +27,17 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
     /// Its items are copies under `SourcesLayout.root` (all but iCloud Drive).
     public var isCopied: Bool { self != .icloud }
 
-    /// The folder its files go into, under `SourcesLayout.root`.
-    public var folderName: String { title }
+    /// The folder its files go into, under `SourcesLayout.root`: the English names, which existing copies use.
+    public var folderName: String {
+        switch self {
+        case .mail: "Mail"
+        case .notes: "Notes"
+        case .calendar: "Calendar"
+        case .reminders: "Reminders"
+        case .photos: "Photos"
+        case .icloud: "iCloud Drive"
+        }
+    }
 
     /// An SF Symbol for the settings and the results.
     public var symbol: String {
@@ -57,10 +66,10 @@ public enum SourceKind: String, CaseIterable, Sendable, Codable, Identifiable {
     /// What it takes for DigUp to read this source.
     public var accessNeeded: String {
         switch self {
-        case .mail, .notes, .icloud: "Full Disk Access"
-        case .calendar: "access to Calendars"
-        case .reminders: "access to Reminders"
-        case .photos: "access to Photos"
+        case .mail, .notes, .icloud: "l'accès complet au disque"
+        case .calendar: "l'accès aux calendriers"
+        case .reminders: "l'accès aux rappels"
+        case .photos: "l'accès aux photos"
         }
     }
 }
